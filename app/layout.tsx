@@ -1,4 +1,5 @@
 import { Analytics } from '@vercel/analytics/next'
+import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Bricolage_Grotesque } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
@@ -34,13 +35,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${bricolage.variable} bg-background`}>
-      <body className="font-sans antialiased">
-        {children}
-        <Toaster />
-        <PwaRegister />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className={`${inter.variable} ${bricolage.variable} bg-background`}>
+        <body className="font-sans antialiased">
+          {children}
+          <Toaster />
+          <PwaRegister />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

@@ -12,6 +12,19 @@ __v0_jsx-dev-runtime.ts
 # Runtime published-catalog store (JSON stand-in for the DB)
 .data/
 
+# Diagnostic / build logs and TS incremental build cache
+*.log
+*.tsbuildinfo
+
+# OpenNext (Cloudflare) build output
+.open-next/
+
+# Throwaway Clerk-vs-Next integration test app (not part of the product)
+clerk-nextjs/
+
+# npm lockfile — this repo uses pnpm (see pnpm-lock.yaml); this is a stray artifact
+package-lock.json
+
 # Common ignores
 node_modules
 .next/

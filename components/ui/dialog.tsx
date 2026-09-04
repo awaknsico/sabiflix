@@ -53,12 +53,24 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:max-w-sm",
           className
         )}
         {...props}
       >
-        {children}
+        {/*
+          The scroll area owns the old padding/grid/gap. Without it, a dialog
+          taller than the viewport grew past both screen edges (the popup is
+          center-anchored) with no scrollbar anywhere — freezing the footer
+          buttons out of reach. `min-h-0` is what lets the flex child actually
+          shrink to the capped height instead of forcing the popup taller.
+        */}
+        <div
+          data-slot="dialog-content-scroll"
+          className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain p-4"
+        >
+          {children}
+        </div>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"

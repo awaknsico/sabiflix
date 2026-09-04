@@ -1,2 +1,0 @@
-[browser] Image with src "https://i.ytimg.com/vi/HY5EBntQCXQ/maxresdefault.jpg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
-Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
