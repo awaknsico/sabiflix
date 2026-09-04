@@ -12,15 +12,12 @@ import { ShareActions } from '@/components/share-actions'
 import { MoviePreview } from '@/components/movie-preview'
 import { PreviewPlayer } from '@/components/preview-player'
 import { RelatedFilms } from '@/components/related-films'
-import { lookupMovieWithSource } from '@/lib/server-catalog'
-import {
-  movies,
-  movieCast,
-  CATEGORIES,
-} from '@/lib/mock-data'
+import { getPublishedEntries, lookupMovieWithSource } from '@/lib/server-catalog'
 
 export function generateStaticParams() {
-  return movies.map((m) => ({ id: m.id }))
+  // Movies are stored in D1 and their ids are dynamic, so they are rendered on
+  // demand rather than pre-generated at build time.
+  return []
 }
 
 export async function generateMetadata({
@@ -37,7 +34,11 @@ export async function generateMetadata({
   }
 }
 
-const categoryLabel = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]))
+const categoryLabel: Record<string, string> = {
+  feature: 'Feature',
+  short: 'Short',
+  documentary: 'Documentary',
+}
 
 export default async function MovieDetailPage({
   params,
@@ -57,9 +58,10 @@ export default async function MovieDetailPage({
   const startAt = Number.isFinite(parsedT) && parsedT > 0 ? Math.floor(parsedT) : 0
 
   const source = found?.source
-  const cast = movieCast[movie.id] ?? []
+  const cast = movie.actors ?? []
   /* Related: ranked blend of country > language > category, curated as a nudge. */
-  const related = movies
+  const allActive = (await getPublishedEntries()).map((e) => e.movie)
+  const related = allActive
     .filter((m) => m.id !== movie.id && m.isActive)
     .map((m) => ({
       movie: m,
@@ -213,7 +215,7 @@ export default async function MovieDetailPage({
         {/* Related — actor-aware picks, history-aware once the store hydrates */}
         {related.length > 0 ? (
           <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-            <RelatedFilms movie={movie} fallback={related} fallbackHeading={relatedHeading} />
+            <RelatedFilms movie={movie} fallback={related} fallbackHeading={relatedHeading} catalog={allActive} />
           </section>
         ) : null}
       </main>

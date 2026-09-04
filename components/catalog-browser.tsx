@@ -22,17 +22,29 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MovieCard, MovieCardSkeleton } from '@/components/movie-card'
 import { RequestFilmDialog } from '@/components/request-film-dialog'
-import {
-  movies as allMovies,
-  movieCast,
-  CATEGORIES,
-  COUNTRIES,
-  LANGUAGES,
-  type Movie,
-  type MovieCategory,
-} from '@/lib/mock-data'
+import type { Movie, MovieCategory } from '@/lib/mock-data'
 
 const ALL = 'all'
+
+/* Filter option lists. These are editorial constants for the browse UI, not
+   derived from the DB — the catalog itself (movies, search, cast) is served
+   by the D1-backed `publishedMovies` prop. */
+const CATEGORIES: { value: MovieCategory; label: string }[] = [
+  { value: 'feature', label: 'Feature' },
+  { value: 'short', label: 'Short' },
+  { value: 'documentary', label: 'Documentary' },
+]
+
+const COUNTRIES = [
+  'Nigeria',
+  'Ghana',
+  'South Africa',
+  'Kenya',
+  'Tanzania',
+  'Senegal',
+] as const
+
+const LANGUAGES = ['English', 'Yoruba', 'Igbo', 'Swahili', 'Hausa', 'Zulu'] as const
 
 export function CatalogBrowser({
   publishedMovies = [],
@@ -62,7 +74,7 @@ export function CatalogBrowser({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return [...publishedMovies, ...allMovies]
+    return publishedMovies
       .filter((m) => m.isActive)
       .filter((m) => (category === ALL ? true : m.category === category))
       .filter((m) => (country === ALL ? true : m.country === country))
@@ -71,8 +83,8 @@ export function CatalogBrowser({
         if (!q) return true
         const inTitle =
           m.title.toLowerCase().includes(q) ||
-          m.alternativeTitles.some((t) => t.toLowerCase().includes(q))
-        const inCast = (movieCast[m.id] ?? []).some((a) => a.toLowerCase().includes(q))
+          (m.alternativeTitles ?? []).some((t) => t.toLowerCase().includes(q))
+        const inCast = (m.actors ?? []).some((a) => a.toLowerCase().includes(q))
         return inTitle || inCast
       })
   }, [query, category, country, language, publishedMovies])

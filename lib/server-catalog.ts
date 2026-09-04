@@ -24,9 +24,10 @@ import {
  * understands, so the call sites (`/api/catalog`, `/catalog`, `/movie/[id]`)
  * stay identical while the backing store is now the real database.
  *
- * Seed films that ship with the app still resolve from `@/lib/mock-data` so
- * the curated starter catalog renders even before a database is provisioned;
- * anything published through the admin console lives in D1.
+ * The seed movies we ship are imported through the local seed script into D1,
+ * so `getPublishedEntries()` is entirely database-driven. `lookupMovieWithSource`
+ * additionally falls back to the bundled mock catalog so a specific seed id
+ * still resolves before a DB is provisioned.
  */
 
 export interface PublishedEntry {
@@ -72,6 +73,18 @@ function toSource(d: MovieDetail): MovieSource {
       quality: '1080p',
     }
   }
+  return toSourceFromRow(d, s)
+}
+
+/** Like `toSource` but returns `undefined` when the film genuinely has no source,
+ *  so the film page can show "Not yet available" instead of an empty player. */
+function toOptionalSource(d: MovieDetail): MovieSource | undefined {
+  if (d.sources.length === 0) return undefined
+  const s = d.sources.find((x) => x.isPrimary) ?? d.sources[0]
+  return toSourceFromRow(d, s)
+}
+
+function toSourceFromRow(d: MovieDetail, s: { id: string; youtubeVideoId: string; youtubeChannelName: string | null; partNumber: number; isPrimary: boolean; quality: string | null; previewStartSeconds: number | null }): MovieSource {
   return {
     id: s.id,
     movieId: d.id,
@@ -148,7 +161,7 @@ export async function lookupMovieWithSource(
   }
   try {
     const detail = await repoGetMovieById(id)
-    if (detail) return { movie: toMockMovie(detail), source: toSource(detail) }
+    if (detail) return { movie: toMockMovie(detail), source: toOptionalSource(detail) }
   } catch {
     return undefined
   }

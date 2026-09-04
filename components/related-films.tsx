@@ -2,7 +2,6 @@
 
 import { MovieCard } from '@/components/movie-card'
 import { Separator } from '@/components/ui/separator'
-import { movies as catalog } from '@/lib/mock-data'
 import type { Movie } from '@/lib/mock-data'
 import { recommendFor, useWatchHistory } from '@/lib/watch-history'
 
@@ -17,10 +16,13 @@ export function RelatedFilms({
   movie,
   fallback,
   fallbackHeading,
+  catalog = [],
 }: {
   movie: Movie
   fallback: Movie[]
   fallbackHeading: string
+  /** Full active catalog (D1-backed) used for history-aware re-blending. */
+  catalog?: Movie[]
 }) {
   const { entries, ready } = useWatchHistory()
 

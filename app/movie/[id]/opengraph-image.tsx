@@ -1,13 +1,17 @@
 import { ImageResponse } from 'next/og'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
-import { CATEGORIES, getMovieById } from '@/lib/mock-data'
+import { lookupMovieWithSource } from '@/lib/server-catalog'
 
 export const alt = 'SabiFlix — Curated African Cinema'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-const categoryLabel = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]))
+const categoryLabel: Record<string, string> = {
+  feature: 'Feature',
+  short: 'Short',
+  documentary: 'Documentary',
+}
 
 export default async function OpengraphImage({
   params,
@@ -15,7 +19,7 @@ export default async function OpengraphImage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const movie = getMovieById(id)
+  const movie = (await lookupMovieWithSource(id))?.movie
 
   let posterSrc: string | undefined
   if (movie) {
