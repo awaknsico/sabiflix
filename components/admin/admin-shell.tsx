@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
 import {
   ArrowLeft,
   Clapperboard,
@@ -23,8 +25,6 @@ import {
 } from '@/components/ui/empty'
 import { ProtectedPlaceholder } from '@/components/protected-placeholder'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useAuth } from '@/lib/use-auth'
-import { mockUser } from '@/lib/mock-data'
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean }
 
@@ -51,18 +51,50 @@ function AdminSkeleton() {
   )
 }
 
+interface MeUser {
+  id: string
+  displayName: string
+  role: 'admin' | 'creator' | 'user'
+  status: 'active' | 'suspended'
+  avatarUrl: string | null
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, ready } = useAuth()
+  /* Clerk answers "who is signed in"; /api/me answers "what can they do"
+     (roles live in our database, not in Clerk). */
+  const { isLoaded, isSignedIn } = useUser()
   const pathname = usePathname()
+  const [me, setMe] = useState<MeUser | null>(null)
+  const [meLoaded, setMeLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setMeLoaded(true)
+      return
+    }
+    let cancelled = false
+    fetch('/api/me')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setMe(d?.data?.user ?? null)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setMeLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isLoaded, isSignedIn])
 
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href)
 
-  if (!ready) return <AdminSkeleton />
+  if (!isLoaded || !meLoaded) return <AdminSkeleton />
 
   if (!isSignedIn) return <ProtectedPlaceholder area="the admin console" />
 
-  if (!mockUser.isAdmin) {
+  if (me?.role !== 'admin') {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
         <Empty className="max-w-md">

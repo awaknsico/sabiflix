@@ -1,7 +1,7 @@
 'use client'
 
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useState } from 'react'
 import { Check, ExternalLink, ListPlus, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -19,8 +19,21 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { PublishFilmDialog } from '@/components/publish-film-dialog'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { filmSubmissions as seedSubmissions, type FilmSubmission } from '@/lib/mock-data'
 import { buildThumbnailUrl } from '@/lib/youtube'
+
+/** Shape returned by GET /api/submissions (admin sees every submission). */
+interface AdminSubmission {
+  id: string
+  title: string
+  youtubeUrl: string
+  youtubeVideoId: string | null
+  description: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  adminNotes: string | null
+  userDisplayName: string | null
+  publishedMovieId: string | null
+  submittedAt: string
+}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -30,21 +43,37 @@ function formatDate(iso: string) {
   })
 }
 
-const statusVariant: Record<
-  FilmSubmission['status'],
-  'default' | 'secondary' | 'outline'
-> = {
+const statusVariant: Record<AdminSubmission['status'], 'default' | 'secondary' | 'outline'> = {
   pending: 'secondary',
   approved: 'default',
   rejected: 'outline',
 }
 
 export default function AdminSubmissionsPage() {
-  const [subs, setSubs] = useState<FilmSubmission[]>(seedSubmissions)
-  const [publishTarget, setPublishTarget] = useState<FilmSubmission | null>(null)
+  const [subs, setSubs] = useState<AdminSubmission[]>([])
+  const [loading, setLoading] = useState(true)
+  const [publishTarget, setPublishTarget] = useState<AdminSubmission | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
   const [importing, setImporting] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/submissions')
+      const data = await res.json()
+      setSubs(Array.isArray(data?.data?.submissions) ? data.data.submissions : [])
+    } catch {
+      toast.error('Could not load submissions', {
+        description: 'Please refresh the page to try again.',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   function review(id: string, status: 'approved' | 'rejected') {
     setSubs((prev) =>
@@ -64,9 +93,22 @@ export default function AdminSubmissionsPage() {
     toast.success(status === 'approved' ? 'Submission approved' : 'Submission rejected', {
       description: 'The filmmaker will see this status on their dashboard.',
     })
+    fetch(`/api/admin/submissions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status,
+        adminNotes:
+          status === 'approved'
+            ? 'Meets curation guidelines — scheduled for the catalog.'
+            : 'Needs a cleaner master before we can feature it.',
+      }),
+    }).catch(() =>
+      toast.error('Could not save that review', { description: 'Please try again.' }),
+    )
   }
 
-  function handlePublished(sub: FilmSubmission, movieId: string) {
+  function handlePublished(sub: AdminSubmission, movieId: string) {
     setSubs((prev) =>
       prev.map((s) =>
         s.id === sub.id
@@ -79,6 +121,15 @@ export default function AdminSubmissionsPage() {
           : s,
       ),
     )
+    // Keep the DB in sync with the publish decision.
+    fetch(`/api/admin/submissions/${sub.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'approved',
+        adminNotes: 'Published to the catalog with auto-fetched art.',
+      }),
+    }).catch(() => {})
   }
 
   async function importUrls() {
@@ -98,27 +149,35 @@ export default function AdminSubmissionsPage() {
       const rows: Array<Record<string, unknown>> = Array.isArray(data.results)
         ? data.results
         : []
-      const now = new Date().toISOString()
-      const added: FilmSubmission[] = rows
-        .filter((r) => r.ok && typeof r.videoId === 'string')
-        .map((r) => ({
-          id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          userDisplayName: 'Community import',
-          title: String(r.title ?? 'Untitled film'),
-          youtubeUrl: String(r.sourceUrl ?? ''),
-          youtubeVideoId: String(r.videoId),
-          description: '',
-          thumbnailUrl: String(r.thumbnailUrl ?? ''),
-          status: 'pending' as const,
-          adminNotes: null,
-          submittedAt: now,
-        }))
+      const resolved = rows.filter(
+        (r) => r.ok && typeof r.videoId === 'string' && typeof r.sourceUrl === 'string',
+      )
       const failed = rows.filter((r) => !r.ok).length
-      setSubs((prev) => [...added, ...prev])
+
+      // Persist each resolved URL as a real submission so the review state
+      // survives reloads and shows up on the filmmaker's dashboard too.
+      let saved = 0
+      for (const r of resolved) {
+        try {
+          const post = await fetch('/api/submissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: String(r.title ?? 'Untitled film'),
+              youtubeUrl: String(r.sourceUrl),
+            }),
+          })
+          if (post.ok) saved++
+        } catch {
+          // counted as not saved; the reload below reflects the truth
+        }
+      }
+
+      await load()
       setImportOpen(false)
       setImportText('')
       toast.success(
-        `Imported ${added.length} ${added.length === 1 ? 'film' : 'films'}`,
+        `Imported ${saved} ${saved === 1 ? 'film' : 'films'}`,
         {
           description: failed
             ? `${failed} ${failed === 1 ? 'URL could' : 'URLs could'} not be resolved.`
@@ -150,7 +209,11 @@ export default function AdminSubmissionsPage() {
       </div>
 
       <div className="mt-8">
-        {subs.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            Loading submissions…
+          </p>
+        ) : subs.length === 0 ? (
           <Empty className="border py-16">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -298,12 +361,9 @@ export default function AdminSubmissionsPage() {
             if (!open) setPublishTarget(null)
           }}
           initialTitle={publishTarget.title}
-          initialDescription={publishTarget.description}
-          videoId={publishTarget.youtubeVideoId}
-          initialPoster={
-            publishTarget.thumbnailUrl ??
-            buildThumbnailUrl(publishTarget.youtubeVideoId, 'hqdefault')
-          }
+          initialDescription={publishTarget.description ?? ''}
+          videoId={publishTarget.youtubeVideoId ?? ''}
+          initialPoster={buildThumbnailUrl(publishTarget.youtubeVideoId ?? '', 'hqdefault')}
           onPublished={(entry) => {
             handlePublished(publishTarget, entry.movie.id)
             setPublishTarget(null)

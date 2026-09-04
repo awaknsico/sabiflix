@@ -16,7 +16,10 @@ export const GET = handler(async () => {
   const rows = await listRequests(user.id, user.role === 'admin')
   return ok({
     requests: rows.map((r) => ({
-      id: r.id, requestedTitle: r.requestedTitle, status: r.status, createdAt: epochToIso(r.createdAt),
+      id: r.id, requestedTitle: r.requestedTitle, description: r.description,
+      status: r.status, userDisplayName: r.userDisplayName,
+      fulfilledByMovieId: r.fulfilledByMovieId,
+      requestedAt: epochToIso(r.createdAt),
     })),
   })
 })

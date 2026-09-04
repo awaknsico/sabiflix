@@ -1,14 +1,16 @@
 import Link from 'next/link'
-import { ArrowRight, Film, Inbox, ListVideo, Upload } from 'lucide-react'
+import { ArrowRight, Film, Inbox, ShieldAlert, Upload, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  movies,
-  playlists,
-  filmRequests,
-  filmSubmissions,
-} from '@/lib/mock-data'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { requireAdmin } from '@/lib/api/auth'
+import { getAdminStats } from '@/lib/repositories/stats'
+import { listSubmissions } from '@/lib/repositories/submissions'
+import { listRequests } from '@/lib/repositories/requests'
+import { epochToIso } from '@/lib/time'
+
+export const dynamic = 'force-dynamic'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -18,38 +20,59 @@ function formatDate(iso: string) {
   })
 }
 
-export default function AdminDashboardPage() {
-  const stats = [
-    {
-      label: 'Movies',
-      value: movies.length,
-      href: '/admin/movies',
-      icon: Film,
-    },
-    {
-      label: 'Playlists',
-      value: playlists.length,
-      href: '/admin/playlists',
-      icon: ListVideo,
-    },
+export default async function AdminDashboardPage() {
+  /* Server-side role enforcement — the proxy only guarantees a signed-in user. */
+  let admin
+  try {
+    admin = await requireAdmin()
+  } catch {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
+        <Empty className="max-w-md">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldAlert />
+            </EmptyMedia>
+            <EmptyTitle>Admins only</EmptyTitle>
+            <EmptyDescription>
+              Your account does not have permission to view the admin console.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
+    )
+  }
+
+  const [stats, submissions, requests] = await Promise.all([
+    getAdminStats(),
+    listSubmissions(admin.id, true),
+    listRequests(admin.id, true),
+  ])
+
+  const pendingSubs = submissions.filter((s) => s.status === 'pending').slice(0, 3)
+  const openReqs = requests.filter((r) => r.status === 'open').slice(0, 3)
+
+  const statCards: {
+    label: string
+    value: number
+    href: string | null
+    icon: typeof Film
+  }[] = [
+    { label: 'Movies', value: stats.totalMovies, href: '/admin/movies', icon: Film },
+    { label: 'Users', value: stats.totalUsers, href: null, icon: Users },
     {
       label: 'Pending submissions',
-      value: filmSubmissions.filter((s) => s.status === 'pending').length,
+      value: stats.totalSubmissions.pending ?? 0,
       href: '/admin/submissions',
       icon: Upload,
     },
     {
       label: 'Open requests',
-      value: filmRequests.filter((r) => r.status === 'open').length,
+      value: stats.totalRequests.open ?? 0,
       href: '/admin/requests',
       icon: Inbox,
     },
   ]
-
-  const pendingSubs = filmSubmissions
-    .filter((s) => s.status === 'pending')
-    .slice(0, 3)
-  const openReqs = filmRequests.filter((r) => r.status === 'open').slice(0, 3)
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
@@ -62,21 +85,28 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Link key={stat.label} href={stat.href} className="group">
-            <Card className="h-full transition-colors group-hover:border-primary/50">
-              <CardContent className="flex items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                  <stat.icon className="size-5" />
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-2xl font-bold leading-none">{stat.value}</span>
-                  <span className="text-sm text-muted-foreground">{stat.label}</span>
-                </div>
-              </CardContent>
+        {statCards.map((stat) => {
+          const body = (
+            <CardContent className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <stat.icon className="size-5" />
+              </span>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold leading-none">{stat.value}</span>
+                <span className="text-sm text-muted-foreground">{stat.label}</span>
+              </div>
+            </CardContent>
+          )
+          return stat.href ? (
+            <Link key={stat.label} href={stat.href} className="group">
+              <Card className="h-full transition-colors group-hover:border-primary/50">{body}</Card>
+            </Link>
+          ) : (
+            <Card key={stat.label} className="h-full">
+              {body}
             </Card>
-          </Link>
-        ))}
+          )
+        })}
       </div>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -97,7 +127,8 @@ export default function AdminDashboardPage() {
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-medium">{sub.title}</span>
                     <span className="text-xs text-muted-foreground">
-                      {sub.userDisplayName} · {formatDate(sub.submittedAt)}
+                      {sub.userDisplayName ?? 'Unknown filmmaker'} ·{' '}
+                      {formatDate(epochToIso(sub.createdAt))}
                     </span>
                   </div>
                   <Badge variant="secondary">pending</Badge>
@@ -124,7 +155,8 @@ export default function AdminDashboardPage() {
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-medium">{req.requestedTitle}</span>
                     <span className="text-xs text-muted-foreground">
-                      {req.userDisplayName} · {formatDate(req.requestedAt)}
+                      {req.userDisplayName ?? 'Unknown viewer'} ·{' '}
+                      {formatDate(epochToIso(req.createdAt))}
                     </span>
                   </div>
                   <Badge variant="secondary">open</Badge>

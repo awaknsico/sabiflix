@@ -17,7 +17,11 @@ export const GET = handler(async () => {
   return ok({
     submissions: rows.map((r) => ({
       id: r.id, title: r.title, youtubeUrl: r.youtubeUrl,
-      status: r.status, adminNotes: r.adminNotes, createdAt: epochToIso(r.createdAt),
+      youtubeVideoId: r.youtubeVideoId, description: r.description,
+      status: r.status, adminNotes: r.adminNotes,
+      userDisplayName: r.userDisplayName,
+      publishedMovieId: r.publishedMovieId,
+      submittedAt: epochToIso(r.createdAt),
     })),
   })
 })

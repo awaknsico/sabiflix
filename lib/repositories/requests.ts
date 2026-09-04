@@ -3,18 +3,36 @@
  */
 
 import { getDB } from '@/lib/db/client'
-import { filmRequests, type FilmRequest } from '@/lib/db/schema'
+import { filmRequests, users, type FilmRequest } from '@/lib/db/schema'
 import { eq, desc, count } from 'drizzle-orm'
 import { nowEpoch } from '@/lib/time'
 
 function db() { return getDB() }
 
+export type FilmRequestRow = FilmRequest & { userDisplayName: string | null }
+
 /** List requests — non-admins only see their own. */
-export async function listRequests(userId?: string, includeAll: boolean = false): Promise<FilmRequest[]> {
+export async function listRequests(userId?: string, includeAll: boolean = false): Promise<FilmRequestRow[]> {
   const d = db()
   const where = includeAll || !userId ? undefined : eq(filmRequests.userId, userId)
-  const rows = await d.select().from(filmRequests).where(where).orderBy(desc(filmRequests.createdAt)).all()
-  return rows
+  const rows = await d
+    .select({
+      id: filmRequests.id,
+      userId: filmRequests.userId,
+      requestedTitle: filmRequests.requestedTitle,
+      description: filmRequests.description,
+      status: filmRequests.status,
+      fulfilledByMovieId: filmRequests.fulfilledByMovieId,
+      createdAt: filmRequests.createdAt,
+      updatedAt: filmRequests.updatedAt,
+      userDisplayName: users.displayName,
+    })
+    .from(filmRequests)
+    .leftJoin(users, eq(users.id, filmRequests.userId))
+    .where(where)
+    .orderBy(desc(filmRequests.createdAt))
+    .all()
+  return rows as unknown as FilmRequestRow[]
 }
 
 export async function getRequest(id: string): Promise<FilmRequest | null> {
