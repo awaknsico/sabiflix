@@ -33,6 +33,8 @@ export interface MovieDetail {
 
 /** Input type for movie create/update — accepts JS arrays for JSON columns. */
 export interface MovieInput {
+  /** Client-supplied id (e.g. to preserve a `mov-pub-…` slug). When absent, createMovie generates a UUID. */
+  id?: string
   title?: string
   alternativeTitles?: string[] | string
   actors?: string[] | string
@@ -162,7 +164,7 @@ export async function getMovieByYoutubeVideoId(youtubeVideoId: string): Promise<
 export async function createMovie(data: MovieInput): Promise<MovieDetail> {
   const d = db()
   const now = nowEpoch()
-  const movieId = uuid_v7()
+  const movieId = data.id || uuid_v7()
   await d.insert(movies).values({
     id: movieId,
     title: data.title!,

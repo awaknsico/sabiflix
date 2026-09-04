@@ -39,11 +39,17 @@ export function getDB(): DB {
     }
   } catch { /* fall through */ }
 
-  // 2) D1 HTTP API (remote)
+  // 2) D1 HTTP API (remote) — in non-dev deployments (or when explicitly
+  //    forced), we talk to the provisioned Cloudflare D1 over HTTP. In local
+  //    dev the seeded local libsql file (path #3) is preferred so the app works
+  //    without a live Cloudflare database; set FORCE_D1_HTTP=1 to opt into remote.
+
   const accountId = process.env.CF_ACCOUNT_ID
   const dbId = process.env.CF_D1_DATABASE_ID
   const token = process.env.CF_D1_TOKEN
-  if (accountId && dbId && token) {
+  const isDev = process.env.NODE_ENV === 'development'
+  const forced = process.env.FORCE_D1_HTTP === '1' || process.env.FORCE_D1_HTTP === 'true'
+  if ((!isDev || forced) && accountId && dbId && token) {
     _db = createD1HttpProxy(accountId, dbId, token)
     _mode = 'd1-http'
     return _db

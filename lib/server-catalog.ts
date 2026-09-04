@@ -1,19 +1,32 @@
-import { join } from 'path'
-import { mkdir, readFile, writeFile } from 'fs/promises'
 import {
-  getMovieById,
-  getPrimarySource,
+  getMovieById as repoGetMovieById,
+  listMovies,
+  createMovie,
+  updateMovie,
+  softDeleteMovie,
+  type MovieDetail,
+  type MovieInput,
+} from '@/lib/repositories/movies'
+import {
+  getMovieById as mockGetMovieById,
+  getPrimarySource as mockGetPrimarySource,
   type Movie,
+  type MovieCategory,
   type MovieSource,
 } from '@/lib/mock-data'
 
 /**
- * Server-side published-catalog store.
+ * Server-side published-catalog adapter.
  *
- * A tiny JSON-file stand-in for the Drizzle `movies`/`movie_sources` tables so
- * that "Approve & Publish" from the admin console produces a real, navigable
- * film page today. Swap the internals for Drizzle queries when the DB is
- * provisioned — the call sites stay identical.
+ * The canonical catalog store is Cloudflare D1 (`movies` / `movie_sources`),
+ * accessed through `@/lib/repositories/movies`. This module is a thin adapter
+ * that maps D1 rows into the `Movie` / `MovieSource` shapes the UI already
+ * understands, so the call sites (`/api/catalog`, `/catalog`, `/movie/[id]`)
+ * stay identical while the backing store is now the real database.
+ *
+ * Seed films that ship with the app still resolve from `@/lib/mock-data` so
+ * the curated starter catalog renders even before a database is provisioned;
+ * anything published through the admin console lives in D1.
  */
 
 export interface PublishedEntry {
@@ -21,47 +34,123 @@ export interface PublishedEntry {
   source: MovieSource
 }
 
-const DATA_DIR = join(process.cwd(), '.data')
-const CATALOG_FILE = join(DATA_DIR, 'catalog.json')
+const CATEGORIES: ReadonlySet<string> = new Set(['feature', 'short', 'documentary'])
 
-async function readEntries(): Promise<PublishedEntry[]> {
+function toMockCategory(value: string | null | undefined): MovieCategory {
+  return CATEGORIES.has(value as string) ? (value as MovieCategory) : 'feature'
+}
+
+function toMockMovie(d: MovieDetail): Movie {
+  return {
+    id: d.id,
+    title: d.title,
+    alternativeTitles: d.alternativeTitles,
+    actors: d.actors,
+    year: d.year ?? new Date().getFullYear(),
+    country: d.country ?? 'Nigeria',
+    language: d.language ?? 'English',
+    category: toMockCategory(d.category),
+    synopsis: d.synopsis ?? '',
+    posterUrl: d.posterUrl ?? '/placeholder.svg',
+    isActive: true,
+    curationType: d.curationType as Movie['curationType'] | undefined,
+    createdAt: new Date(d.createdAt * 1000).toISOString(),
+    updatedAt: new Date(d.updatedAt * 1000).toISOString(),
+  }
+}
+
+function toSource(d: MovieDetail): MovieSource {
+  const s = d.sources.find((x) => x.isPrimary) ?? d.sources[0]
+  if (!s) {
+    return {
+      id: `src-${d.id}`,
+      movieId: d.id,
+      youtubeVideoId: '',
+      youtubeChannelName: 'SabiFlix Curated',
+      partNumber: 1,
+      isPrimary: true,
+      quality: '1080p',
+    }
+  }
+  return {
+    id: s.id,
+    movieId: d.id,
+    youtubeVideoId: s.youtubeVideoId,
+    youtubeChannelName: s.youtubeChannelName ?? 'SabiFlix Curated',
+    partNumber: s.partNumber,
+    isPrimary: s.isPrimary,
+    quality: s.quality ?? '1080p',
+    previewStartSeconds: s.previewStartSeconds ?? undefined,
+  }
+}
+
+function toEntry(d: MovieDetail): PublishedEntry {
+  return { movie: toMockMovie(d), source: toSource(d) }
+}
+
+function toMovieInput(movie: Movie, source?: MovieSource): MovieInput {
+  return {
+    title: movie.title,
+    alternativeTitles: movie.alternativeTitles,
+    actors: movie.actors,
+    year: movie.year,
+    country: movie.country,
+    language: movie.language,
+    category: movie.category as MovieInput['category'],
+    synopsis: movie.synopsis,
+    posterUrl: movie.posterUrl,
+    curationType: movie.curationType as MovieInput['curationType'],
+    isActive: true,
+    createdBy: null,
+    ...(source?.youtubeVideoId
+      ? {
+          youtubeVideoId: source.youtubeVideoId,
+          youtubeChannelName: source.youtubeChannelName ?? null,
+          quality: source.quality ?? null,
+          previewStartSeconds: source.previewStartSeconds ?? 0,
+        }
+      : {}),
+  }
+}
+
+/** All non-deleted movies currently in D1 (the canonical published store). */
+export async function getPublishedEntries(): Promise<PublishedEntry[]> {
   try {
-    const raw = await readFile(CATALOG_FILE, 'utf8')
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as PublishedEntry[]) : []
+    const { items } = await listMovies({ perPage: 1000 })
+    const entries: PublishedEntry[] = []
+    for (const m of items) {
+      const detail = await repoGetMovieById(m.id)
+      if (detail) entries.push(toEntry(detail))
+    }
+    return entries
   } catch {
+    // No database provisioned yet — healthy empty set; seed still renders.
     return []
   }
 }
 
-async function writeEntries(entries: PublishedEntry[]): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true })
-  await writeFile(CATALOG_FILE, JSON.stringify(entries, null, 2), 'utf8')
-}
-
-export async function getPublishedEntries(): Promise<PublishedEntry[]> {
-  return readEntries()
-}
-
 export async function findPublishedEntry(id: string): Promise<PublishedEntry | undefined> {
-  const entries = await readEntries()
-  return entries.find((e) => e.movie.id === id)
+  const detail = await repoGetMovieById(id)
+  return detail ? toEntry(detail) : undefined
 }
 
 /**
- * Look up a film across both the mock seed catalog and the published store.
- * Mocks resolve synchronously-fast without touching the file system.
+ * Look up a film across both the seed catalog and the D1 published store.
+ * Seed movies resolve without touching the database; D1-published ones are
+ * fetched from the canonical store.
  */
-export async function lookupMovieWithSource(id: string): Promise<
-  { movie: Movie; source?: MovieSource } | undefined
-> {
-  const mockMovie = getMovieById(id)
+export async function lookupMovieWithSource(
+  id: string,
+): Promise<{ movie: Movie; source?: MovieSource } | undefined> {
+  const mockMovie = mockGetMovieById(id)
   if (mockMovie) {
-    return { movie: mockMovie, source: getPrimarySource(id) }
+    return { movie: mockMovie, source: mockGetPrimarySource(id) }
   }
-  const entry = await findPublishedEntry(id)
-  if (entry) {
-    return { movie: entry.movie, source: entry.source }
+  try {
+    const detail = await repoGetMovieById(id)
+    if (detail) return { movie: toMockMovie(detail), source: toSource(detail) }
+  } catch {
+    return undefined
   }
   return undefined
 }
@@ -70,32 +159,21 @@ export async function upsertPublishedEntry(
   movie: Movie,
   source?: MovieSource,
 ): Promise<PublishedEntry> {
-  const entries = await readEntries()
-  const entry: PublishedEntry = { movie, source: source ?? fallbackSource(movie) }
-  const idx = entries.findIndex((e) => e.movie.id === movie.id)
-  if (idx >= 0) entries[idx] = entry
-  else entries.unshift(entry)
-  await writeEntries(entries)
-  return entry
+  const input = toMovieInput(movie, source)
+
+  let detail: MovieDetail | null
+  const existing = movie.id ? await repoGetMovieById(movie.id) : null
+  if (existing) {
+    await updateMovie(movie.id, input)
+    detail = await repoGetMovieById(movie.id)
+  } else {
+    detail = await createMovie({ ...input, id: movie.id || undefined })
+  }
+
+  if (!detail) throw new Error('Failed to persist published entry')
+  return toEntry(detail)
 }
 
 export async function removePublishedEntry(id: string): Promise<boolean> {
-  const entries = await readEntries()
-  const next = entries.filter((e) => e.movie.id !== id)
-  if (next.length === entries.length) return false
-  await writeEntries(next)
-  return true
-}
-
-/** Sensible defaults for a source when only a movie (custom art) is supplied. */
-function fallbackSource(movie: Movie): MovieSource {
-  return {
-    id: `src-${movie.id}`,
-    movieId: movie.id,
-    youtubeVideoId: '',
-    youtubeChannelName: 'SabiFlix Curated',
-    partNumber: 1,
-    isPrimary: true,
-    quality: '1080p',
-  }
+  return softDeleteMovie(id)
 }
