@@ -9,11 +9,16 @@ compatibility_flags = ["nodejs_compat"]
 # Build output (OpenNext places the worker here)
 main = ".open-next/worker.js"
 
+# Serve the static Next.js chunks and public assets through the Worker.
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
 # D1 database binding — the code accesses it as env.DB
 [[d1_databases]]
 binding = "DB"
 database_name = "sabiflix"
-database_id = "your-d1-database-id-here"
+database_id = "6b59f3b9-0bf4-46a8-9e1b-5bdb81a9fdb8"
 
 # R2 bucket for posters and assets (optional)
 # [[r2_buckets]]
@@ -22,7 +27,7 @@ database_id = "your-d1-database-id-here"
 
 # Environment variables (use `wrangler secret put` for sensitive values)
 [vars]
-NEXT_PUBLIC_APP_URL = "https://sabiflix.your-domain.com"
+NEXT_PUBLIC_APP_URL = "https://sabiflix.de5.net"
 
 # Secrets (set via CLI, NOT here):
 #   wrangler secret put CLERK_SECRET_KEY
