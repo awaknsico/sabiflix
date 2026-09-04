@@ -40,7 +40,6 @@ import {
   CATEGORIES,
   COUNTRIES,
   LANGUAGES,
-  movies as seedMovies,
   type Movie,
   type MovieCategory,
 } from '@/lib/mock-data'
@@ -63,7 +62,7 @@ function emptyForm() {
 const isPublished = (m: Movie) => m.id.startsWith('mov-pub-')
 
 export default function AdminMoviesPage() {
-  const [list, setList] = useState<Movie[]>(seedMovies)
+  const [list, setList] = useState<Movie[]>([])
   const [sourcesById, setSourcesById] = useState<Record<string, { videoId: string; channel: string }>>({})
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -71,31 +70,25 @@ export default function AdminMoviesPage() {
   const [form, setForm] = useState(emptyForm)
   const { resolving, meta, error } = useYouTubeMeta(form.youtubeUrl)
 
-  async function refreshCatalog() {
+  const refreshCatalog = useCallback(async () => {
     try {
-      const res = await fetch('/api/catalog')
+      const res = await fetch('/api/movies?perPage=100&sort=title&sortDir=asc')
       const data = await res.json()
-      if (!Array.isArray(data?.movies) || !Array.isArray(data?.sources)) return
-      const published = data.movies as Movie[]
-      setList((prev) => [
-        ...published,
-        ...prev.filter((m) => !published.some((p) => p.id === m.id)),
-      ])
-      const map: Record<string, { videoId: string; channel: string }> = {}
-      for (const s of data.sources as Array<{
-        movieId: string
-        youtubeVideoId: string
-        youtubeChannelName?: string
-      }>) {
-        if (s.movieId) {
-          map[s.movieId] = { videoId: s.youtubeVideoId ?? '', channel: s.youtubeChannelName ?? '' }
-        }
-      }
-      setSourcesById(map)
+      if (!res.ok || !Array.isArray(data?.data?.movies)) throw new Error('Catalog unavailable')
+      const movies = data.data.movies as Array<Movie & { youtubeVideoId?: string | null }>
+      setList(movies.map(({ youtubeVideoId: _youtubeVideoId, ...movie }) => movie))
+      setSourcesById(
+        Object.fromEntries(
+          movies
+            .filter((movie) => movie.youtubeVideoId)
+            .map((movie) => [movie.id, { videoId: movie.youtubeVideoId!, channel: '' }]),
+        ),
+      )
     } catch {
-      // The seed catalog still works offline; published films just stay hidden.
+      setList([])
+      setSourcesById({})
     }
-  }
+  }, [])
 
   useEffect(() => {
     refreshCatalog()
@@ -137,15 +130,18 @@ export default function AdminMoviesPage() {
   }
 
   function handleDelete(movie: Movie) {
-    if (isPublished(movie)) {
-      fetch(`/api/catalog?id=${encodeURIComponent(movie.id)}`, { method: 'DELETE' }).catch(
-        () => {},
-      )
-    }
-    setList((prev) => prev.filter((m) => m.id !== movie.id))
-    toast.success('Movie deleted', {
-      description: `“${movie.title}” was removed from the catalog.`,
-    })
+    void (async () => {
+      try {
+        const endpoint = isPublished(movie) ? `/api/catalog?id=${encodeURIComponent(movie.id)}` : `/api/movies/${movie.id}`
+        const res = await fetch(endpoint, { method: 'DELETE' })
+        const data = await res.json().catch(() => null)
+        if (!res.ok || data?.ok === false) throw new Error(data?.error ?? 'Delete failed')
+        setList((prev) => prev.filter((m) => m.id !== movie.id))
+        toast.success('Movie deleted', { description: `“${movie.title}” was removed from the catalog.` })
+      } catch (err) {
+        toast.error('Delete failed', { description: err instanceof Error ? err.message : 'Please try again.' })
+      }
+    })()
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -155,16 +151,8 @@ export default function AdminMoviesPage() {
     try {
       const existing = editingId ? list.find((m) => m.id === editingId) : undefined
       const videoId = parseYouTubeId(form.youtubeUrl)
-      const isPublishing = existing ? isPublished(existing) : Boolean(videoId)
-      const now = new Date().toISOString()
-      const movie: Movie = {
-        id:
-          editingId ??
-          (isPublishing
-            ? `mov-pub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-            : `mov-${Date.now()}`),
+      const payload = {
         title: form.title.trim(),
-        alternativeTitles: [],
         actors: form.actors
           .split(',')
           .map((a) => a.trim())
@@ -175,56 +163,22 @@ export default function AdminMoviesPage() {
         category: form.category,
         curationType: (form.curationType || undefined) as Movie['curationType'],
         synopsis: form.synopsis.trim(),
-        posterUrl: form.posterUrl.trim() || meta?.thumbnailUrl || '/placeholder.svg',
-        isActive: existing?.isActive ?? true,
-        createdAt: existing?.createdAt ?? now,
-        updatedAt: now,
+        posterUrl: form.posterUrl.trim() || meta?.thumbnailUrl || undefined,
+        youtubeVideoId: videoId ?? (editingId ? sourcesById[editingId]?.videoId : undefined),
+        youtubeChannelName: meta?.authorName ?? (editingId ? sourcesById[editingId]?.channel : undefined),
+        previewStartSeconds: 60,
       }
-
-      if (isPublishing) {
-        const src = editingId ? sourcesById[editingId] : undefined
-        await fetch('/api/catalog', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            movie,
-            source: {
-              youtubeVideoId: videoId ?? src?.videoId ?? '',
-              youtubeChannelName: meta?.authorName ?? src?.channel ?? 'SabiFlix Curated',
-              previewStartSeconds: 60,
-            },
-          }),
-        })
-        await refreshCatalog()
-        toast.success(editingId ? 'Movie updated' : 'Movie published', {
-          description: `“${movie.title}” is live on its own film page.`,
-        })
-      } else {
-        setList((prev) =>
-          editingId
-            ? prev.map((m) =>
-                m.id === editingId
-                  ? {
-                      ...m,
-                      title: movie.title,
-                      year: movie.year,
-                      country: movie.country,
-                      language: movie.language,
-                      category: movie.category,
-                      synopsis: movie.synopsis,
-                      posterUrl: movie.posterUrl,
-                      updatedAt: now,
-                    }
-                  : m,
-              )
-            : [movie, ...prev],
-        )
-        toast.success(editingId ? 'Movie updated' : 'Movie added', {
-          description: editingId
-            ? `“${form.title.trim()}” was saved.`
-            : `“${form.title.trim()}” is now in the catalog.`,
-        })
-      }
+      const res = await fetch(editingId ? `/api/movies/${editingId}` : '/api/movies', {
+        method: editingId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.ok) throw new Error(data?.error ?? 'Save failed')
+      await refreshCatalog()
+      toast.success(editingId ? 'Movie updated' : 'Movie added', {
+        description: `“${form.title.trim()}” is now in the catalog.`,
+      })
       setDialogOpen(false)
     } catch {
       toast.error('Save failed', {
@@ -465,6 +419,7 @@ export default function AdminMoviesPage() {
                   value={form.youtubeUrl}
                   onChange={(e) => setForm((f) => ({ ...f, youtubeUrl: e.target.value }))}
                   placeholder="https://www.youtube.com/watch?v=..."
+                  required={!editingId}
                 />
               </Field>
 

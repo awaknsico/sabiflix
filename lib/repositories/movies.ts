@@ -13,6 +13,7 @@ function db() { return getDB() }
 export interface MovieListItem {
   id: string; title: string; year: number | null; country: string | null
   language: string | null; category: string | null; posterUrl: string | null
+  actors: string[]; synopsis: string | null; isActive: boolean
   curationType: string | null; avgRating: number; ratingCount: number
   youtubeVideoId: string | null
 }
@@ -104,6 +105,7 @@ export async function listMovies(params: {
   const rows = await d.select({
     id: movies.id, title: movies.title, year: movies.year,
     country: movies.country, language: movies.language, category: movies.category,
+    actors: movies.actors, synopsis: movies.synopsis, isActive: movies.isActive,
     posterUrl: movies.posterUrl, curationType: movies.curationType,
     avgRating: movies.avgRating, ratingCount: movies.ratingCount,
     youtubeVideoId: movieSources.youtubeVideoId,
@@ -111,7 +113,16 @@ export async function listMovies(params: {
     .leftJoin(movieSources, and(eq(movieSources.movieId, movies.id), eq(movieSources.isPrimary, true)))
     .where(and(...conds)).orderBy(orderBy).limit(perPage).offset(off).all()
 
-  return { items: rows as unknown as MovieListItem[], total, page, perPage }
+  return {
+    items: rows.map((row) => ({
+      ...row,
+      actors: parseJson(row.actors),
+      isActive: !!row.isActive,
+    })) as MovieListItem[],
+    total,
+    page,
+    perPage,
+  }
 }
 
 export async function getMovieById(id: string): Promise<MovieDetail | null> {
@@ -219,6 +230,15 @@ export async function updateMovie(id: string, data: MovieInput): Promise<MovieDe
   if (data.avgRating !== undefined) updates.avgRating = data.avgRating
   if (data.ratingCount !== undefined) updates.ratingCount = data.ratingCount
   await d.update(movies).set(updates).where(eq(movies.id, id))
+  if (data.youtubeVideoId !== undefined || data.youtubeChannelName !== undefined || data.previewStartSeconds !== undefined) {
+    const sourceUpdates: Record<string, unknown> = {}
+    if (data.youtubeVideoId !== undefined) sourceUpdates.youtubeVideoId = data.youtubeVideoId
+    if (data.youtubeChannelName !== undefined) sourceUpdates.youtubeChannelName = data.youtubeChannelName
+    if (data.previewStartSeconds !== undefined) sourceUpdates.previewStartSeconds = data.previewStartSeconds
+    await d.update(movieSources).set(sourceUpdates).where(
+      and(eq(movieSources.movieId, id), eq(movieSources.isPrimary, true)),
+    )
+  }
   return getMovieById(id)
 }
 

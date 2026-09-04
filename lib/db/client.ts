@@ -18,6 +18,7 @@ import { drizzle as drizzleLibsql } from 'drizzle-orm/libsql'
 import { createClient } from '@libsql/client'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { getCloudflareContext } from '@opennextjs/cloudflare'
 import * as schema from './schema'
 
 export type DB = ReturnType<typeof drizzleLibsql<typeof schema>>
@@ -31,7 +32,7 @@ export function getDB(): DB {
 
   // 1) D1 binding (Cloudflare)
   try {
-    const cf = (globalThis as any)?.env?.DB ?? (globalThis as any)?.process?.env?.DB
+    const cf = (getCloudflareContext().env as { DB?: unknown }).DB
     if (cf && typeof cf === 'object' && 'prepare' in cf) {
       _db = drizzleD1(cf, { schema }) as unknown as DB
       _mode = 'd1'
@@ -75,7 +76,7 @@ export function dbMode(): string { return _mode }
 function createD1HttpProxy(accountId: string, databaseId: string, token: string): DB {
   const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}`
 
-  async function d1Query(sql: string, params: unknown[] = []): Promise<any[]> {
+  async function d1Query(sql: string, params: unknown[] = []): Promise<{ rows: any[]; meta: Record<string, unknown> }> {
     const res = await fetch(`${base}/query`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -85,28 +86,31 @@ function createD1HttpProxy(accountId: string, databaseId: string, token: string)
     const json = (await res.json()) as any
     if (!json.success) throw new Error(`D1 error: ${JSON.stringify(json.errors)}`)
     const result = json.result?.[0]
-    if (!result?.results) return []
+    if (!result?.results) return { rows: [], meta: result?.meta ?? {} }
     const { columns, rows } = result.results
-    return rows.map((row: any[]) => {
+    return {
+      rows: rows.map((row: any[]) => {
       const obj: Record<string, unknown> = {}
       columns.forEach((col: string, i: number) => { obj[col] = row[i] })
       return obj
-    })
+      }),
+      meta: result.meta ?? {},
+    }
   }
 
   const d1Binding = {
     prepare: (sql: string) => ({
       bind: (...params: unknown[]) => ({
-        all: async () => ({ results: await d1Query(sql, params) }),
-        first: async () => (await d1Query(sql, params))[0] ?? null,
-        run: async () => ({ meta: { changes: 0, last_row_id: 0 } }),
+        all: async () => ({ results: (await d1Query(sql, params)).rows }),
+        first: async () => (await d1Query(sql, params)).rows[0] ?? null,
+        run: async () => ({ meta: (await d1Query(sql, params)).meta }),
       }),
-      all: async () => ({ results: await d1Query(sql, []) }),
-      first: async () => (await d1Query(sql, []))[0] ?? null,
-      run: async () => ({ meta: { changes: 0, last_row_id: 0 } }),
+      all: async () => ({ results: (await d1Query(sql, [])).rows }),
+      first: async () => (await d1Query(sql, [])).rows[0] ?? null,
+      run: async () => ({ meta: (await d1Query(sql, [])).meta }),
     }),
-    batch: async (statements: any[]) => Promise.all(statements.map((s) => s.all())),
-    exec: async (_sql: string) => ({ count: 0 }),
+    batch: async (statements: any[]) => Promise.all(statements.map((s) => s.run())),
+    exec: async (sql: string) => d1Query(sql),
   }
 
   return drizzleD1(d1Binding as any, { schema }) as unknown as DB
