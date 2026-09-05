@@ -1,6 +1,6 @@
 import {
   getMovieById as repoGetMovieById,
-  listMovies,
+  listMovieDetails,
   createMovie,
   updateMovie,
   softDeleteMovie,
@@ -129,15 +129,13 @@ function toMovieInput(movie: Movie, source?: MovieSource): MovieInput {
 /** All non-deleted movies currently in D1 (the canonical published store). */
 export async function getPublishedEntries(): Promise<PublishedEntry[]> {
   try {
-    const { items } = await listMovies({ perPage: 1000 })
-    const entries: PublishedEntry[] = []
-    for (const m of items) {
-      const detail = await repoGetMovieById(m.id)
-      if (detail) entries.push(toEntry(detail))
-    }
-    return entries
-  } catch {
+    // Batch-loaded in two queries — avoids the N+1 pattern that previously
+    // did one detail fetch per movie and blew the Worker CPU budget.
+    const details = await listMovieDetails()
+    return details.map((d) => toEntry(d))
+  } catch (err) {
     // No database provisioned yet — healthy empty set; seed still renders.
+    console.error('[getPublishedEntries] failed:', err)
     return []
   }
 }

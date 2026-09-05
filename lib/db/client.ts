@@ -76,7 +76,10 @@ export function dbMode(): string { return _mode }
 function createD1HttpProxy(accountId: string, databaseId: string, token: string): DB {
   const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}`
 
-  async function d1Query(sql: string, params: unknown[] = []): Promise<{ rows: any[]; meta: Record<string, unknown> }> {
+  async function d1Query(
+    sql: string,
+    params: unknown[] = [],
+  ): Promise<{ rows: Record<string, unknown>[]; rawRows: unknown[][]; meta: Record<string, unknown> }> {
     const res = await fetch(`${base}/query`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -86,28 +89,46 @@ function createD1HttpProxy(accountId: string, databaseId: string, token: string)
     const json = (await res.json()) as any
     if (!json.success) throw new Error(`D1 error: ${JSON.stringify(json.errors)}`)
     const result = json.result?.[0]
-    if (!result?.results) return { rows: [], meta: result?.meta ?? {} }
-    const { columns, rows } = result.results
+    if (!result?.results) return { rows: [], rawRows: [], meta: result?.meta ?? {} }
+
+    const results = result.results
+    let rows: Record<string, unknown>[]
+    let rawRows: unknown[][]
+    if (Array.isArray(results)) {
+      // Current D1 HTTP API — `results` is already an array of row objects
+      // keyed by column name (column order preserved, matching select order).
+      rows = results as Record<string, unknown>[]
+      rawRows = rows.map((row) => Object.values(row))
+    } else if (results && Array.isArray(results.rows)) {
+      // Legacy response shape — `results` is `{ columns: string[], rows: unknown[][] }`.
+      const columns = (results.columns ?? []) as string[]
+      rawRows = results.rows as unknown[][]
+      rows = rawRows.map((row) => {
+        const obj: Record<string, unknown> = {}
+        columns.forEach((col: string, i: number) => { obj[col] = (row as unknown[])[i] })
+        return obj
+      })
+    } else {
+      rows = []
+      rawRows = []
+    }
+    return { rows, rawRows, meta: result.meta ?? {} }
+  }
+
+  /** The fluent bound-statement surface Drizzle's D1 driver requires. */
+  function execute(sql: string, params: unknown[]) {
     return {
-      rows: rows.map((row: any[]) => {
-      const obj: Record<string, unknown> = {}
-      columns.forEach((col: string, i: number) => { obj[col] = row[i] })
-      return obj
-      }),
-      meta: result.meta ?? {},
+      all: async () => ({ results: (await d1Query(sql, params)).rows }),
+      first: async () => (await d1Query(sql, params)).rows[0] ?? null,
+      raw: async () => (await d1Query(sql, params)).rawRows,
+      run: async () => ({ success: true, meta: (await d1Query(sql, params)).meta }),
     }
   }
 
   const d1Binding = {
     prepare: (sql: string) => ({
-      bind: (...params: unknown[]) => ({
-        all: async () => ({ results: (await d1Query(sql, params)).rows }),
-        first: async () => (await d1Query(sql, params)).rows[0] ?? null,
-        run: async () => ({ meta: (await d1Query(sql, params)).meta }),
-      }),
-      all: async () => ({ results: (await d1Query(sql, [])).rows }),
-      first: async () => (await d1Query(sql, [])).rows[0] ?? null,
-      run: async () => ({ meta: (await d1Query(sql, [])).meta }),
+      bind: (...params: unknown[]) => execute(sql, params),
+      ...execute(sql, []),
     }),
     batch: async (statements: any[]) => Promise.all(statements.map((s) => s.run())),
     exec: async (sql: string) => d1Query(sql),

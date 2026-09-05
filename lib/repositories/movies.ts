@@ -4,7 +4,7 @@
 
 import { getDB } from '@/lib/db/client'
 import { movies, movieSources, type NewMovie } from '@/lib/db/schema'
-import { eq, and, desc, asc, sql, like, or, count } from 'drizzle-orm'
+import { eq, and, desc, asc, sql, like, or, count, inArray } from 'drizzle-orm'
 import { nowEpoch } from '@/lib/time'
 import { uuid_v7 } from '@/lib/ids'
 
@@ -144,6 +144,67 @@ export async function getMovieById(id: string): Promise<MovieDetail | null> {
       quality: s.quality, previewStartSeconds: s.previewStartSeconds,
     })),
   }
+}
+
+/**
+ * Batch-load every active movie together with its sources in exactly TWO
+ * queries (movies + sources) instead of the previous N+1 pattern (1 list +
+ * per-movie detail fetch). `getPublishedEntries()` renders the full catalog
+ * on every film page for the related section, so a 100+ row N+1 over the
+ * D1 HTTP bridge was blowing the Worker CPU time budget → 503 responses.
+ *
+ * The sources query filters with a correlated `IN (SELECT id FROM movies
+ * WHERE is_active = 1)` subquery instead of `IN (?, ?, …)` over every movie id:
+ * Cloudflare D1 rejects statements with more than 100 bound variables
+ * ("too many SQL variables … SQLITE_ERROR"), and the live catalog already
+ * exceeds that. A subquery keeps the exact same semantics with one bind
+ * parameter, so it scales to any catalog size without hitting the limit.
+ */
+export async function listMovieDetails(): Promise<MovieDetail[]> {
+  const d = db()
+  const rows = await d
+    .select()
+    .from(movies)
+    .where(eq(movies.isActive, true))
+    .orderBy(desc(movies.createdAt))
+    .all()
+
+  if (rows.length === 0) return []
+
+  const sourceRows = await d
+    .select()
+    .from(movieSources)
+    .where(
+      inArray(
+        movieSources.movieId,
+        d.select({ id: movies.id }).from(movies).where(eq(movies.isActive, true)),
+      ),
+    )
+    .orderBy(asc(movieSources.partNumber))
+    .all()
+
+  const sourcesByMovie = new Map<string, (typeof sourceRows)[number][]>()
+  for (const s of sourceRows) {
+    const list = sourcesByMovie.get(s.movieId) ?? []
+    list.push(s)
+    sourcesByMovie.set(s.movieId, list)
+  }
+
+  return rows.map((r) => {
+    const sources = (sourcesByMovie.get(r.id) ?? []).map((s) => ({
+      id: s.id, youtubeVideoId: s.youtubeVideoId, youtubeChannelName: s.youtubeChannelName,
+      partNumber: s.partNumber, isPrimary: !!(s.isPrimary as unknown as number | boolean),
+      quality: s.quality, previewStartSeconds: s.previewStartSeconds,
+    }))
+    return {
+      id: r.id, title: r.title, alternativeTitles: parseJson(r.alternativeTitles),
+      actors: parseJson(r.actors), year: r.year, country: r.country,
+      language: r.language, category: r.category, synopsis: r.synopsis,
+      posterUrl: r.posterUrl, curationType: r.curationType, avgRating: r.avgRating,
+      ratingCount: r.ratingCount, createdAt: r.createdAt, updatedAt: r.updatedAt,
+      sources,
+    }
+  })
 }
 
 export async function getMovieByYoutubeVideoId(youtubeVideoId: string): Promise<MovieDetail | null> {

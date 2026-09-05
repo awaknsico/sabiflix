@@ -20,17 +20,24 @@ export function generateStaticParams() {
   return []
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { id } = await params
-  const movie = (await lookupMovieWithSource(id))?.movie
-  if (!movie) return { title: 'Film not found — SabiFlix' }
-  return {
-    title: `${movie.title} (${movie.year}) — SabiFlix`,
-    description: movie.synopsis,
+  try {
+    const { id } = await params
+    const movie = (await lookupMovieWithSource(id))?.movie
+    if (!movie) return { title: 'Film not found — SabiFlix' }
+    return {
+      title: `${movie.title} (${movie.year}) — SabiFlix`,
+      description: movie.synopsis,
+    }
+  } catch (e) {
+    console.error('[generateMetadata] movie page error:', e)
+    return { title: 'Film not found — SabiFlix' }
   }
 }
 
