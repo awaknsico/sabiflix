@@ -117,13 +117,14 @@ export function DashboardView() {
     const form = e.currentTarget
     const data = new FormData(form)
     const title = String(data.get('requestedTitle') || '').trim()
+    const description = String(data.get('description') || '').trim()
     if (!title) return
     setRequestSubmitting(true)
     try {
       const response = await fetch('/api/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestedTitle: title }),
+        body: JSON.stringify({ requestedTitle: title, description }),
       })
       const payload = await response.json().catch(() => null)
       if (!response.ok || payload?.ok !== true) {
@@ -435,6 +436,15 @@ export function DashboardView() {
                         name="requestedTitle"
                         placeholder="e.g. Living in Bondage (1992)"
                         required
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="description">Description (optional)</FieldLabel>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        placeholder="Any details that help identify this film — year, director, actors, plot details."
+                        rows={3}
                       />
                     </Field>
                     <Field>
