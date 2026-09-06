@@ -2,7 +2,7 @@
 
 import { MovieCard } from '@/components/movie-card'
 import { Separator } from '@/components/ui/separator'
-import type { Movie } from '@/lib/mock-data'
+import type { Movie } from '@/lib/types'
 import { recommendFor, useWatchHistory } from '@/lib/watch-history'
 
 /**

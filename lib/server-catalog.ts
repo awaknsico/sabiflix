@@ -7,13 +7,10 @@ import {
   type MovieDetail,
   type MovieInput,
 } from '@/lib/repositories/movies'
-import {
-  getMovieById as mockGetMovieById,
-  getPrimarySource as mockGetPrimarySource,
-  type Movie,
-  type MovieCategory,
-  type MovieSource,
-} from '@/lib/mock-data'
+import { listFeaturedPlaylists, listPlaylists } from '@/lib/repositories/playlists'
+import type { Movie, MovieCategory, MovieSource, PlaylistWithMovies } from '@/lib/types'
+
+export type { PlaylistWithMovies }
 
 /**
  * Server-side published-catalog adapter.
@@ -21,13 +18,13 @@ import {
  * The canonical catalog store is Cloudflare D1 (`movies` / `movie_sources`),
  * accessed through `@/lib/repositories/movies`. This module is a thin adapter
  * that maps D1 rows into the `Movie` / `MovieSource` shapes the UI already
- * understands, so the call sites (`/api/catalog`, `/catalog`, `/movie/[id]`)
- * stay identical while the backing store is now the real database.
+ * understands, so the call sites (`/api/catalog`, `/catalog`, `/movie/[id]`,
+ * and now the homepage) stay identical while the backing store is the real
+ * database.
  *
- * The seed movies we ship are imported through the local seed script into D1,
- * so `getPublishedEntries()` is entirely database-driven. `lookupMovieWithSource`
- * additionally falls back to the bundled mock catalog so a specific seed id
- * still resolves before a DB is provisioned.
+ * The seed movies shipped with the repo are imported into D1 through the local
+ * seed script or `wrangler d1 execute`, so every read here is
+ * database-driven — there is no bundled mock-catalog fallback anymore.
  */
 
 export interface PublishedEntry {
@@ -146,24 +143,62 @@ export async function findPublishedEntry(id: string): Promise<PublishedEntry | u
 }
 
 /**
- * Look up a film across both the seed catalog and the D1 published store.
- * Seed movies resolve without touching the database; D1-published ones are
- * fetched from the canonical store.
+ * Look up a film in the D1 published store and return its `Movie` + primary
+ * source (when present). D1-only — no mock fallback.
  */
 export async function lookupMovieWithSource(
   id: string,
 ): Promise<{ movie: Movie; source?: MovieSource } | undefined> {
-  const mockMovie = mockGetMovieById(id)
-  if (mockMovie) {
-    return { movie: mockMovie, source: mockGetPrimarySource(id) }
-  }
   try {
     const detail = await repoGetMovieById(id)
-    if (detail) return { movie: toMockMovie(detail), source: toOptionalSource(detail) }
+    if (!detail) return undefined
+    return { movie: toMockMovie(detail), source: toOptionalSource(detail) }
   } catch {
     return undefined
   }
-  return undefined
+}
+
+/** Common resolver — maps playlist rows to PlaylistWithMovies using published movies. */
+async function hydratePlaylists(
+  rows: Awaited<ReturnType<typeof listPlaylists>>,
+  entries: PublishedEntry[],
+): Promise<PlaylistWithMovies[]> {
+  const byId = new Map(entries.map((e) => [e.movie.id, e.movie] as const))
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    isFeatured: p.isFeatured,
+    movies: p.movieIds
+      .map((id) => byId.get(id))
+      .filter((m): m is Movie => Boolean(m)),
+  }))
+}
+
+/** Featured (curator) playlists with their movies — drives the homepage hero + rows. */
+export async function getFeaturedPlaylists(
+  entries?: PublishedEntry[],
+): Promise<PlaylistWithMovies[]> {
+  try {
+    const rows = await listFeaturedPlaylists()
+    if (rows.length === 0) return []
+    return await hydratePlaylists(rows, entries ?? await getPublishedEntries())
+  } catch (err) {
+    console.error('[getFeaturedPlaylists] failed:', err)
+    return []
+  }
+}
+
+/** All playlists with their movies — used by the admin playlists console. */
+export async function getAllPlaylists(
+  entries?: PublishedEntry[],
+): Promise<PlaylistWithMovies[]> {
+  try {
+    return await hydratePlaylists(await listPlaylists(), entries ?? await getPublishedEntries())
+  } catch (err) {
+    console.error('[getAllPlaylists] failed:', err)
+    return []
+  }
 }
 
 export async function upsertPublishedEntry(

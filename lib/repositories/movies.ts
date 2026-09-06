@@ -308,3 +308,46 @@ export async function softDeleteMovie(id: string): Promise<boolean> {
   await d.update(movies).set({ isActive: false }).where(eq(movies.id, id))
   return true
 }
+
+/**
+ * Fast title → catalog search for the header / global search box.
+ * Matches title, alternative titles, synopsis, actors (JSON string) and
+ * country/language (the actor match replaces the old client-side `movieCast`
+ * index). Returns at most `limit` active movies, newest first.
+ */
+export async function searchMovies(q: string, limit = 6): Promise<MovieListItem[]> {
+  const d = db()
+  const needle = q.trim().toLowerCase()
+  if (!needle) return []
+
+  const t = `%${needle}%`
+  const cond = and(
+    eq(movies.isActive, true),
+    or(
+      like(sql`lower(${movies.title})`, t),
+      like(sql`lower(${movies.alternativeTitles})`, t),
+      like(sql`lower(${movies.synopsis})`, t),
+      like(sql`lower(${movies.actors})`, t),
+      like(sql`lower(${movies.country})`, t),
+      like(sql`lower(${movies.language})`, t),
+    ),
+  )
+
+  const rows = await d
+    .select({
+      id: movies.id, title: movies.title, year: movies.year,
+      country: movies.country, language: movies.language, category: movies.category,
+      actors: movies.actors, synopsis: movies.synopsis, isActive: movies.isActive,
+      posterUrl: movies.posterUrl, curationType: movies.curationType,
+      avgRating: movies.avgRating, ratingCount: movies.ratingCount,
+      youtubeVideoId: movieSources.youtubeVideoId,
+    })
+    .from(movies)
+    .leftJoin(movieSources, and(eq(movieSources.movieId, movies.id), eq(movieSources.isPrimary, true)))
+    .where(cond)
+    .orderBy(desc(movies.createdAt))
+    .limit(limit)
+    .all()
+
+  return rows.map((row) => ({ ...row, actors: parseJson(row.actors), isActive: !!row.isActive })) as MovieListItem[]
+}

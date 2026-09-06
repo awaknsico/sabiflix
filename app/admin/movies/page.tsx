@@ -36,13 +36,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ThumbnailPicker } from '@/components/thumbnail-picker'
 import { useYouTubeMeta } from '@/lib/use-youtube-meta'
 import { parseYouTubeId } from '@/lib/youtube'
-import {
-  CATEGORIES,
-  COUNTRIES,
-  LANGUAGES,
-  type Movie,
-  type MovieCategory,
-} from '@/lib/mock-data'
+import { CATEGORIES, COUNTRIES, LANGUAGES, type Movie, type MovieCategory } from '@/lib/types'
 
 function emptyForm() {
   return {

@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Clock, Film, Heart, Inbox, Loader2, Plus, Send, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -28,13 +28,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { MovieCard } from '@/components/movie-card'
-import {
-  filmRequests as seedRequests,
-  filmSubmissions as seedSubmissions,
-  getMovieById,
-  type FilmRequest,
-  type FilmSubmission,
-} from '@/lib/mock-data'
+import type { FilmRequest, FilmSubmission, Movie } from '@/lib/types'
 import { isComplete, useWatchHistory } from '@/lib/watch-history'
 import { useWatchlist } from '@/lib/watchlist'
 import { useYouTubeMeta } from '@/lib/use-youtube-meta'
@@ -63,17 +57,41 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
 
 export function DashboardView() {
   /* Favorites live in the shared watchlist store (heart toggles everywhere). */
-  const { ids: favoriteIds } = useWatchlist()
-  const favorites = favoriteIds
-    .map((id) => getMovieById(id))
-    .filter((m): m is NonNullable<ReturnType<typeof getMovieById>> => Boolean(m))
+  const [movieById, setMovieById] = useState<Map<string, Movie>>(new Map())
+  const [requests, setRequests] = useState<FilmRequest[]>([])
+  const [submissions, setSubmissions] = useState<FilmSubmission[]>([])
+  const [displayName, setDisplayName] = useState('You')
+  const [requestSubmitting, setRequestSubmitting] = useState(false)
+  const [submissionSubmitting, setSubmissionSubmitting] = useState(false)
 
-  const [requests, setRequests] = useState<FilmRequest[]>(
-    seedRequests.filter((r) => r.userDisplayName === 'Tunde Bakare' || r.status === 'open'),
-  )
-  const [submissions, setSubmissions] = useState<FilmSubmission[]>(
-    seedSubmissions.slice(0, 2),
-  )
+  const { ids: favoriteIds } = useWatchlist([...movieById.keys()])
+
+  const favorites = favoriteIds
+    .map((id) => movieById.get(id))
+    .filter((m): m is Movie => Boolean(m && m.isActive))
+
+  /* Stock the dashboard from the D1-backed APIs (replaces the old mock seeds). */
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/catalog').then((r) => r.json().catch(() => null)),
+      fetch('/api/requests').then((r) => r.json().catch(() => null)),
+      fetch('/api/submissions').then((r) => r.json().catch(() => null)),
+      fetch('/api/me').then((r) => r.json().catch(() => null)),
+    ])
+      .then(([cat, req, sub, me]) => {
+        const movieList = (cat as any)?.movies
+        if (Array.isArray(movieList)) {
+          setMovieById(new Map(movieList.map((m: Movie) => [m.id, m] as const)))
+        }
+        const reqList = (req as any)?.ok === true ? (req as any).data?.requests : null
+        if (Array.isArray(reqList)) setRequests(reqList as FilmRequest[])
+        const subList = (sub as any)?.ok === true ? (sub as any).data?.submissions : null
+        if (Array.isArray(subList)) setSubmissions(subList as FilmSubmission[])
+        const user = (me as any)?.ok === true ? (me as any).data?.user : null
+        if (user?.displayName) setDisplayName(user.displayName)
+      })
+      .catch(() => {})
+  }, [])
 
   /* Live watch history — same store the player records into. */
   const {
@@ -82,7 +100,7 @@ export function DashboardView() {
     remove: removeHistory,
     markComplete,
     clear: clearHistory,
-  } = useWatchHistory()
+  } = useWatchHistory([...movieById.keys()])
   const [historyFilter, setHistoryFilter] = useState<'all' | 'watched' | 'in-progress'>('all')
   const visibleHistory = historyEntries.filter((entry) =>
     historyFilter === 'all' || (historyFilter === 'watched') === isComplete(entry),
@@ -94,59 +112,97 @@ export function DashboardView() {
   const [subDescription, setSubDescription] = useState('')
   const { resolving, meta, error } = useYouTubeMeta(submitUrl)
 
-  function handleRequest(e: React.FormEvent<HTMLFormElement>) {
+  async function handleRequest(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = e.currentTarget
     const data = new FormData(form)
     const title = String(data.get('requestedTitle') || '').trim()
     if (!title) return
-    setRequests((prev) => [
-      {
-        id: `req-${Date.now()}`,
-        userDisplayName: 'Ada Eze',
-        requestedTitle: title,
-        requestedAt: new Date().toISOString(),
-        status: 'open',
-      },
-      ...prev,
-    ])
-    form.reset()
-    toast.success('Film request submitted', {
-      description: 'Our curators will review it soon.',
-    })
+    setRequestSubmitting(true)
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestedTitle: title }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || payload?.ok !== true) {
+        throw new Error(payload?.error || 'Could not submit the request')
+      }
+      const request = payload.data?.request
+      if (request) {
+        setRequests((prev) => [
+          {
+            id: request.id,
+            userDisplayName: displayName,
+            requestedTitle: request.requestedTitle,
+            requestedAt: request.createdAt,
+            status: request.status,
+          },
+          ...prev,
+        ])
+      }
+      form.reset()
+      toast.success('Film request submitted', {
+        description: 'Our curators will review it soon.',
+      })
+    } catch (error) {
+      toast.error('Could not submit film request', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      })
+    } finally {
+      setRequestSubmitting(false)
+    }
   }
 
-  function handleSubmission(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmission(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const title = subTitle.trim()
     const url = submitUrl.trim()
     if (!title || !url) return
-    setSubmissions((prev) => [
-      {
-        id: `sub-${Date.now()}`,
-        userDisplayName: 'Ada Eze',
-        title,
-        youtubeUrl: url,
-        youtubeVideoId: meta?.videoId ?? '',
-        description: subDescription.trim(),
-        thumbnailUrl: meta?.thumbnailUrl,
-        status: 'pending',
-        adminNotes: null,
-        submittedAt: new Date().toISOString(),
-      },
-      ...prev,
-    ])
-    setSubTitle('')
-    setSubmitUrl('')
-    setSubDescription('')
-    if (meta?.videoId) {
-      toast.success('Film submitted for review', {
-        description: `Details auto-filled from YouTube — a moderator will watch “${title}” shortly.`,
+    setSubmissionSubmitting(true)
+    try {
+      const response = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, youtubeUrl: url, description: subDescription.trim() }),
       })
-    } else {
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || payload?.ok !== true) {
+        throw new Error(payload?.error || 'Could not submit the film')
+      }
+      const submission = payload.data?.submission
+      if (submission) {
+        setSubmissions((prev) => [
+          {
+            id: submission.id,
+            userDisplayName: displayName,
+            title: submission.title,
+            youtubeUrl: url,
+            youtubeVideoId: meta?.videoId ?? '',
+            description: subDescription.trim(),
+            thumbnailUrl: meta?.thumbnailUrl,
+            status: submission.status,
+            adminNotes: null,
+            submittedAt: submission.createdAt,
+          },
+          ...prev,
+        ])
+      }
+      setSubTitle('')
+      setSubmitUrl('')
+      setSubDescription('')
       toast.success('Film submitted for review', {
-        description: 'Thanks — a moderator will watch it shortly.',
+        description: meta?.videoId
+          ? `Details auto-filled from YouTube — a moderator will watch “${title}” shortly.`
+          : 'Thanks — a moderator will watch it shortly.',
       })
+    } catch (error) {
+      toast.error('Could not submit film', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      })
+    } finally {
+      setSubmissionSubmitting(false)
     }
   }
 
@@ -239,7 +295,7 @@ export function DashboardView() {
               ) : (
                 <div className="flex flex-col gap-3">
                   {visibleHistory.map((entry) => {
-                    const movie = getMovieById(entry.movieId)
+                    const movie = movieById.get(entry.movieId)
                     if (!movie) return null
                     const pct = progressPercent(entry)
                     const done = isComplete(entry)
@@ -382,9 +438,9 @@ export function DashboardView() {
                       />
                     </Field>
                     <Field>
-                      <Button type="submit">
+                      <Button type="submit" disabled={requestSubmitting}>
                         <Send data-icon="inline-start" />
-                        Submit request
+                        {requestSubmitting ? 'Submitting...' : 'Submit request'}
                       </Button>
                     </Field>
                   </FieldGroup>
@@ -512,9 +568,9 @@ export function DashboardView() {
                       />
                     </Field>
                     <Field>
-                      <Button type="submit">
+                      <Button type="submit" disabled={submissionSubmitting}>
                         <Upload data-icon="inline-start" />
-                        Submit for review
+                        {submissionSubmitting ? 'Submitting...' : 'Submit for review'}
                       </Button>
                     </Field>
                   </FieldGroup>

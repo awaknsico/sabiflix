@@ -25,13 +25,8 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ThumbnailPicker } from '@/components/thumbnail-picker'
-import {
-  CATEGORIES,
-  COUNTRIES,
-  LANGUAGES,
-  type MovieCategory,
-} from '@/lib/mock-data'
-import type { Movie, MovieSource } from '@/lib/mock-data'
+import { CATEGORIES, COUNTRIES, LANGUAGES } from '@/lib/types'
+import type { Movie, MovieCategory, MovieSource } from '@/lib/types'
 
 export interface PublishedResult {
   movie: Movie

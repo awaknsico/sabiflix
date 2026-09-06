@@ -3,8 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { X } from 'lucide-react'
-import { getMovieById } from '@/lib/mock-data'
-import type { Movie } from '@/lib/mock-data'
+import type { Movie } from '@/lib/types'
 import { resumeCandidates, useWatchHistory } from '@/lib/watch-history'
 import type { WatchHistoryItem } from '@/lib/watch-history'
 import { cn } from '@/lib/utils'
@@ -21,12 +20,15 @@ function formatDuration(totalSeconds: number) {
  * "Pick up where you left off" — the quiet return-rate row. Reads live watch
  * history and links straight into the player at the saved position (`?t=`).
  */
-export function ContinueWatching() {
-  const { entries, ready, remove } = useWatchHistory()
+export function ContinueWatching({ catalog }: { catalog: Movie[] }) {
+  const { entries, ready, remove } = useWatchHistory(catalog.map((movie) => movie.id))
+  const movieById = new Map(catalog.map((m) => [m.id, m] as const))
 
   const items = resumeCandidates(entries, { limit: 5 })
-    .map((entry) => ({ entry, movie: getMovieById(entry.movieId) }))
-    .filter((item): item is { entry: WatchHistoryItem; movie: Movie } => item.movie !== undefined)
+    .map((entry) => ({ entry, movie: movieById.get(entry.movieId) }))
+    .filter((item): item is { entry: WatchHistoryItem; movie: Movie } =>
+      Boolean(item.movie && item.movie.isActive),
+    )
 
   if (!ready || items.length === 0) return null
 
@@ -55,7 +57,7 @@ export function ContinueWatching() {
                 'group relative flex flex-col overflow-hidden rounded-xl',
                 'border border-white/[0.06] bg-gradient-to-b from-card to-background',
                 'outline-none transition-all duration-300',
-                'hover:-translate-y-1.5 hover:border-primary/40 hover:shadow-[0_20px_50px_-16px_rgba(0,0,0,0.85),0_0_0_1px_rgba(240,201,135,0.12)]',
+                'hover:-translate-y-1.5 hover:border-primary/40 hover:shadow-[0_20px_50px_-16px_rgba(0,0,0,0.85),0_0_0_1px_rgba(242,146,29,0.14)]',
                 'focus-visible:ring-3 focus-visible:ring-ring/50',
               )}
             >
@@ -83,7 +85,7 @@ export function ContinueWatching() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0A0B0F]/95 via-[#0A0B0F]/10 to-transparent" />
                 {/* Resume pill — revealed on hover (matches MovieCard Watch pill) */}
                 <div className="absolute inset-x-0 bottom-0 flex translate-y-2 items-center justify-center pb-3 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-ember px-3.5 py-1.5 text-xs font-semibold text-[#14150E] shadow-[0_0_20px_rgba(240,201,135,0.35)]">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-ember px-3.5 py-1.5 text-xs font-semibold text-[#14150E] shadow-[0_0_20px_rgba(242,146,29,0.35)]">
                     Resume
                   </span>
                 </div>

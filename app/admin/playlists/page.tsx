@@ -15,27 +15,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  getPlaylistMovies,
-  getMovieById,
-  movies as allMovies,
-  playlists,
-  type Movie,
-} from '@/lib/mock-data'
+import type { Movie, PlaylistWithMovies } from '@/lib/types'
 
 export default function AdminPlaylistsPage() {
-  const [playlistId, setPlaylistId] = useState(playlists[0]?.id ?? '')
-  const playlist = playlists.find((p) => p.id === playlistId)
+  const [playlists, setPlaylists] = useState<PlaylistWithMovies[]>([])
+  const [allMovies, setAllMovies] = useState<Movie[]>([])
+  const [playlistId, setPlaylistId] = useState('')
   const [ordered, setOrdered] = useState<Movie[]>([])
   const [dragFrom, setDragFrom] = useState<number | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const playlist = playlists.find((p) => p.id === playlistId)
+  const movieById = new Map(allMovies.map((m) => [m.id, m] as const))
+
+  // Playlists + the movie pool are served by the D1-backed APIs.
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/playlists').then((r) => r.json().catch(() => null)),
+      fetch('/api/catalog').then((r) => r.json().catch(() => null)),
+    ])
+      .then(([pl, cat]) => {
+        const list = (pl as any)?.ok === true ? (pl as any).data?.playlists : null
+        if (Array.isArray(list)) {
+          setPlaylists(list as PlaylistWithMovies[])
+          setPlaylistId((prev) => prev || (list[0]?.id ?? ''))
+        }
+        const movies = (cat as any)?.movies
+        if (Array.isArray(movies)) setAllMovies(movies as Movie[])
+      })
+      .catch(() => {})
+  }, [])
 
   // Load the selected playlist's movies (re-selecting resets local edits).
   useEffect(() => {
     const p = playlists.find((pl) => pl.id === playlistId)
-    setOrdered(p ? getPlaylistMovies(p) : [])
+    setOrdered(p ? p.movies : [])
     setDirty(false)
-  }, [playlistId])
+  }, [playlists, playlistId])
 
   function reorder(from: number, to: number) {
     setOrdered((prev) => {
@@ -81,7 +98,7 @@ export default function AdminPlaylistsPage() {
     if (data.startsWith('row:')) {
       reorder(dragFrom ?? Number(data.slice(4)), index)
     } else if (data.startsWith('pool:')) {
-      const movie = getMovieById(data.slice(5))
+      const movie = movieById.get(data.slice(5))
       if (movie) addMovie(movie, index)
     }
     setDragFrom(null)
@@ -91,18 +108,39 @@ export default function AdminPlaylistsPage() {
     e.preventDefault()
     const data = e.dataTransfer.getData('text/plain')
     if (data.startsWith('pool:')) {
-      const movie = getMovieById(data.slice(5))
+      const movie = movieById.get(data.slice(5))
       if (movie) addMovie(movie)
     }
     setDragFrom(null)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!playlist) return
-    toast.success('Playlist saved', {
-      description: `“${playlist.name}” now has ${ordered.length} movie${ordered.length === 1 ? '' : 's'} in this order.`,
-    })
-    setDirty(false)
+    setSaving(true)
+    try {
+      const response = await fetch('/api/playlists', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playlistId: playlist.id, movieIds: ordered.map((movie) => movie.id) }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok || data?.ok !== true) {
+        throw new Error(data?.error || 'Could not save playlist')
+      }
+      setPlaylists((current) => current.map((item) => (
+        item.id === playlist.id ? { ...item, movies: ordered } : item
+      )))
+      setDirty(false)
+      toast.success('Playlist saved', {
+        description: `“${playlist.name}” now has ${ordered.length} movie${ordered.length === 1 ? '' : 's'} in this order.`,
+      })
+    } catch (error) {
+      toast.error('Could not save playlist', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const pool = allMovies.filter(
@@ -119,8 +157,8 @@ export default function AdminPlaylistsPage() {
           </p>
         </div>
         {playlist ? (
-          <Button onClick={handleSave} disabled={!dirty}>
-            Save order
+          <Button onClick={handleSave} disabled={!dirty || saving}>
+            {saving ? 'Saving...' : 'Save order'}
           </Button>
         ) : null}
       </div>

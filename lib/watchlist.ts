@@ -1,15 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { favoriteMovieIds } from '@/lib/mock-data'
 
 /**
  * Prototype watchlist ("save for later") state.
  *
- * Mirrors the `use-auth.ts` pattern: the list lives in localStorage and is
- * broadcast through a custom event (+ `storage` for other tabs) so every
- * mounted consumer stays in sync. Seeded with the mock favorites on first
- * read so the prototype starts warm.
+ * The list lives in localStorage and is broadcast through a custom event
+ * (+ `storage` for other tabs) so every mounted consumer stays in sync.
+ * Starts empty — the demo favorites that used to ship in
+ * `lib/mock-data.ts` have been removed.
  */
 
 const KEY = 'sabiflix:watchlist'
@@ -31,7 +30,7 @@ function getSnapshot(): string | null {
 
 function readCurrent(): string[] {
   const raw = getSnapshot()
-  if (raw === null) return [...favoriteMovieIds]
+  if (raw === null) return []
   try {
     const parsed: unknown = JSON.parse(raw)
     return Array.isArray(parsed)
@@ -47,8 +46,18 @@ function writeNext(ids: string[]) {
   window.dispatchEvent(new Event(EVENT))
 }
 
-export function useWatchlist() {
+export function useWatchlist(validMovieIds?: readonly string[]) {
   const raw = useSyncExternalStore(subscribe, getSnapshot, () => null)
+
+  const validIdsKey = validMovieIds?.join('\u0000')
+
+  useEffect(() => {
+    if (!validMovieIds?.length) return
+    const validIds = new Set(validMovieIds)
+    const current = readCurrent()
+    const cleaned = current.filter((id) => validIds.has(id))
+    if (cleaned.length !== current.length) writeNext(cleaned)
+  }, [validIdsKey])
 
   // `ready` flips after hydration so consumers can avoid flashing the
   // signed-out/empty state before localStorage has actually been read.

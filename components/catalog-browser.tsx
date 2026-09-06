@@ -22,7 +22,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MovieCard, MovieCardSkeleton } from '@/components/movie-card'
 import { RequestFilmDialog } from '@/components/request-film-dialog'
-import type { Movie, MovieCategory } from '@/lib/mock-data'
+import type { Movie, MovieCategory } from '@/lib/types'
 
 const ALL = 'all'
 

@@ -1,17 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { getMovieById, movies as catalog, watchHistory as seedHistory } from '@/lib/mock-data'
-import type { Movie, WatchHistoryEntry } from '@/lib/mock-data'
+import type { Movie, WatchHistoryEntry } from '@/lib/types'
 
 /**
  * Prototype watch-history state.
  *
  * Mirrors the `watchlist.ts` pattern: the list lives in localStorage,
  * broadcast through a custom event (+ `storage` for other tabs) so every
- * mounted consumer stays in sync. Seeded with the mock history on first read
- * so the prototype starts warm. Clearing writes an empty array (instead of
- * removing the key) so the seeded mock entries do not resurrect.
+ * mounted consumer stays in sync. Starts empty — the demo watch history that
+ * used to ship in `lib/mock-data.ts` has been removed.
  *
  * Entries are upserted per movie (one row per film), always sorted by last
  * activity (`updatedAt`) descending so consumers can render straight through.
@@ -58,7 +56,7 @@ function normalize(entry: WatchHistoryEntry): WatchHistoryItem {
 }
 
 function parseEntries(raw: string | null): WatchHistoryItem[] {
-  if (raw === null) return seedHistory.map(normalize)
+  if (raw === null) return []
   try {
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -70,7 +68,7 @@ function parseEntries(raw: string | null): WatchHistoryItem[] {
       .map(normalize)
       .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
   } catch {
-    return seedHistory.map(normalize)
+    return []
   }
 }
 
@@ -99,7 +97,6 @@ export function resumeCandidates(
 ): WatchHistoryItem[] {
   return entries
     .filter((e) => !isComplete(e))
-    .filter((e) => getMovieById(e.movieId)?.isActive === true)
     .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
     .slice(0, limit)
 }
@@ -107,10 +104,12 @@ export function resumeCandidates(
 /**
  * Community "most watched" ranking: every watch contributes a recency-weighted
  * score (1.0 today, ~0.5 a week ago, ~0.25 after two) so one binge session
- * cannot dominate the rail — count + freshness, not raw plays.
+ * cannot dominate the rail — count + freshness, not raw plays. Movies are
+ * resolved through the passed D1-backed catalog.
  */
 export function rankMostWatched(
   entries: WatchHistoryItem[],
+  movies: Map<string, Movie>,
   { period = 'all', limit = 10 }: { period?: WatchPeriod; limit?: number } = {},
 ): { movie: Movie; score: number }[] {
   const now = Date.now()
@@ -120,7 +119,7 @@ export function rankMostWatched(
 
   const byMovie = new Map<string, { movie: Movie; score: number }>()
   for (const e of scoped) {
-    const movie = getMovieById(e.movieId)
+    const movie = movies.get(e.movieId)
     if (!movie || !movie.isActive) continue
     const days = Math.max(0, (now - +new Date(e.updatedAt)) / dayMs)
     const recency = Math.pow(0.5, days / 7)
@@ -166,8 +165,18 @@ export function recommendFor(movie: Movie, entries: WatchHistoryItem[], catalog:
     .map((r) => r.movie)
 }
 
-export function useWatchHistory() {
+export function useWatchHistory(validMovieIds?: readonly string[]) {
   const raw = useSyncExternalStore(subscribe, getSnapshot, () => null)
+
+  const validIdsKey = validMovieIds?.join('\u0000')
+
+  useEffect(() => {
+    if (!validMovieIds?.length) return
+    const validIds = new Set(validMovieIds)
+    const current = parseEntries(getSnapshot())
+    const cleaned = current.filter((entry) => validIds.has(entry.movieId))
+    if (cleaned.length !== current.length) writeNext(cleaned)
+  }, [validIdsKey])
 
   // `ready` flips after hydration so consumers can avoid flashing the
   // empty state before localStorage has actually been read.

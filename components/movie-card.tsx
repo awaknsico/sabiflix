@@ -4,7 +4,7 @@ import { BadgeCheck, Clapperboard, Play, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { WatchlistToggle } from '@/components/watchlist-toggle'
 import { cn } from '@/lib/utils'
-import type { Movie } from '@/lib/mock-data'
+import type { Movie } from '@/lib/types'
 
 const categoryLabel: Record<Movie['category'], string> = {
   feature: 'Feature',
@@ -54,7 +54,7 @@ export function MovieCard({
         'container-card group relative flex flex-col overflow-hidden rounded-xl',
         'border border-white/[0.06] bg-gradient-to-b from-card to-background',
         'outline-none transition-all duration-300',
-        'hover:-translate-y-1.5 hover:border-primary/40 hover:shadow-[0_20px_50px_-16px_rgba(0,0,0,0.85),0_0_0_1px_rgba(240,201,135,0.12)]',
+        'hover:-translate-y-1.5 hover:border-primary/40 hover:shadow-[0_20px_50px_-16px_rgba(0,0,0,0.85),0_0_0_1px_rgba(242,146,29,0.14)]',
         'focus-visible:ring-3 focus-visible:ring-ring/50',
         className,
       )}
@@ -90,7 +90,7 @@ export function MovieCard({
 
         {/* Watch pill — revealed on hover */}
         <div className="absolute inset-x-0 bottom-0 flex translate-y-2 items-center justify-center pb-3 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-ember px-3.5 py-1.5 text-xs font-semibold text-[#14150E] shadow-[0_0_20px_rgba(240,201,135,0.35)]">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-ember px-3.5 py-1.5 text-xs font-semibold text-[#14150E] shadow-[0_0_20px_rgba(242,146,29,0.35)]">
             <Play className="size-3.5 fill-current" />
             Watch
           </span>

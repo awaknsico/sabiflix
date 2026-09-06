@@ -1,20 +1,20 @@
 'use client'
 
 import { MovieCard } from '@/components/movie-card'
-import { getMovieById } from '@/lib/mock-data'
-import type { Movie } from '@/lib/mock-data'
+import type { Movie } from '@/lib/types'
 import { useWatchlist } from '@/lib/watchlist'
 
 /**
  * "Your watchlist" home row — only renders once hydration has read the store
  * and the viewer has actually saved something. Renders nothing otherwise.
  */
-export function WatchlistRow() {
-  const { ids, ready } = useWatchlist()
+export function WatchlistRow({ catalog }: { catalog: Movie[] }) {
+  const { ids, ready } = useWatchlist(catalog.map((movie) => movie.id))
+  const movieById = new Map(catalog.map((m) => [m.id, m] as const))
 
   const movies = ids
-    .map((id) => getMovieById(id))
-    .filter((m): m is Movie => m !== undefined && m.isActive)
+    .map((id) => movieById.get(id))
+    .filter((m): m is Movie => Boolean(m && m.isActive))
     .slice(0, 5)
 
   if (!ready || movies.length === 0) return null

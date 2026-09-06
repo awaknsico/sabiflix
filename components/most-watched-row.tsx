@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { MovieCarousel } from '@/components/movie-carousel'
 import { rankMostWatched, useWatchHistory } from '@/lib/watch-history'
 import type { WatchPeriod } from '@/lib/watch-history'
+import type { Movie } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 /**
@@ -11,10 +12,11 @@ import { cn } from '@/lib/utils'
  * history (recency-weighted, so one binge session can't dominate). Framed as
  * a quiet pulse beneath the curated rows — not as an algorithm's picks.
  */
-export function MostWatchedRow() {
-  const { entries, ready } = useWatchHistory()
+export function MostWatchedRow({ catalog }: { catalog: Movie[] }) {
+  const { entries, ready } = useWatchHistory(catalog.map((movie) => movie.id))
   const [period, setPeriod] = useState<WatchPeriod>('all')
-  const ranked = rankMostWatched(entries, { period, limit: 10 })
+  const movieById = new Map(catalog.map((m) => [m.id, m] as const))
+  const ranked = rankMostWatched(entries, movieById, { period, limit: 10 })
   const movies = ranked.map((r) => r.movie)
 
   if (!ready || movies.length < 2) return null

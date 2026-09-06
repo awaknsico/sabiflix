@@ -3,6 +3,7 @@
  */
 
 export * from './movies'
+export * from './playlists'
 export * from './reviews'
 export * from './watchlist'
 export * from './history'

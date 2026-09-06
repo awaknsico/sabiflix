@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import { movies } from '@/lib/mock-data'
+import type { Movie } from '@/lib/types'
 
 const KEY = 'sabiflix:last-visit'
 
@@ -12,20 +12,20 @@ const KEY = 'sabiflix:last-visit'
  * in localStorage. First-time visitors see nothing; the stamp updates after
  * the count is computed, so the pill naturally clears on the next visit.
  */
-export function NewSinceVisit() {
+export function NewSinceVisit({ catalog }: { catalog: Movie[] }) {
   const [newCount, setNewCount] = useState(0)
 
   useEffect(() => {
     const previous = window.localStorage.getItem(KEY)
     if (previous) {
       const since = new Date(previous).getTime()
-      const count = movies.filter(
+      const count = catalog.filter(
         (m) => m.isActive && +new Date(m.createdAt) > since,
       ).length
       setNewCount(count)
     }
     window.localStorage.setItem(KEY, new Date().toISOString())
-  }, [])
+  }, [catalog])
 
   if (newCount === 0) return null
 

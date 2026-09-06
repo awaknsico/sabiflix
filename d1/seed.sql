@@ -25,3 +25,20 @@ INSERT INTO movie_sources (id, movie_id, youtube_video_id, youtube_channel_name,
   ('0190c0de-2000-7000-8000-000000000003', '0190c0de-1000-7000-8000-000000000003', 'eRsGyueVLvQ', 'SabiFlix Curated', 1, 1, '1080p', 131, unixepoch()),
   ('0190c0de-2000-7000-8000-000000000004', '0190c0de-1000-7000-8000-000000000004', 'LXb3EKWsInQ', 'SabiFlix Curated', 1, 1, '1080p', 168, unixepoch()),
   ('0190c0de-2000-7000-8000-000000000005', '0190c0de-1000-7000-8000-000000000005', 'aqz-KE-bpKQ', 'SabiFlix Curated', 1, 1, '1080p', 205, unixepoch());
+
+-- Featured playlists (homepage hero + carousels) --------------------------------
+INSERT INTO playlists (id, name, description, is_featured, created_by, created_at, updated_at) VALUES
+  ('0190c0de-3000-7000-8000-000000000001', 'Curator''s Picks', 'Hand-selected standouts from across the continent.', 1, '0190c0de-0000-7000-8000-000000000001', unixepoch(), unixepoch()),
+  ('0190c0de-3000-7000-8000-000000000002', 'Nollywood Essentials', 'The Nigerian films every collection needs.', 1, '0190c0de-0000-7000-8000-000000000001', unixepoch(), unixepoch()),
+  ('0190c0de-3000-7000-8000-000000000003', 'True Stories', 'Documentaries that stay with you.', 1, '0190c0de-0000-7000-8000-000000000001', unixepoch(), unixepoch()),
+  ('0190c0de-3000-7000-8000-000000000004', 'Short & Sweet', 'Big feelings in under thirty minutes.', 1, '0190c0de-0000-7000-8000-000000000001', unixepoch(), unixepoch());
+
+-- Playlist membership (actor of the seeded catalog) ----------------------------
+INSERT INTO playlist_movies (playlist_id, movie_id, sort_order) VALUES
+  ('0190c0de-3000-7000-8000-000000000001', '0190c0de-1000-7000-8000-000000000001', 0),
+  ('0190c0de-3000-7000-8000-000000000001', '0190c0de-1000-7000-8000-000000000005', 1),
+  ('0190c0de-3000-7000-8000-000000000001', '0190c0de-1000-7000-8000-000000000004', 2),
+  ('0190c0de-3000-7000-8000-000000000002', '0190c0de-1000-7000-8000-000000000001', 0),
+  ('0190c0de-3000-7000-8000-000000000002', '0190c0de-1000-7000-8000-000000000002', 1),
+  ('0190c0de-3000-7000-8000-000000000003', '0190c0de-1000-7000-8000-000000000003', 0),
+  ('0190c0de-3000-7000-8000-000000000004', '0190c0de-1000-7000-8000-000000000004', 0);

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MovieCard } from '@/components/movie-card'
-import type { Movie } from '@/lib/mock-data'
+import type { Movie } from '@/lib/types'
 
 export function MovieCarousel({
   title,

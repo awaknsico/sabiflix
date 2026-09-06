@@ -4,12 +4,11 @@ import {
   removePublishedEntry,
   upsertPublishedEntry,
 } from '@/lib/server-catalog'
-import type { Movie, MovieCategory, MovieSource } from '@/lib/mock-data'
+import type { Movie, MovieCategory, MovieSource } from '@/lib/types'
 
 /**
  * Admin console publish/read/delete for the published catalog.
- * Films written here get a real, navigable `/movie/<id>` page (the server
- * catalog lookup merges them with the mock seed catalog).
+ * Films written here get a real, navigable `/movie/<id>` page from D1.
  */
 
 export const runtime = 'nodejs'

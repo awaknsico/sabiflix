@@ -33,38 +33,48 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useAuth } from '@/lib/use-auth'
-import { mockUser, movieCast, movies, type Movie } from '@/lib/mock-data'
+import { useAuth } from '@clerk/nextjs'
+import type { Movie } from '@/lib/types'
+import { SabiflixSymbol, SabiflixWordmark } from '@/components/brand/sabiflix-logo'
 import { cn } from '@/lib/utils'
 
-/** Rank active movies by a simple title > alt-title > cast > metadata match. */
-function searchMovies(needleRaw: string): Movie[] {
-  const needle = needleRaw.toLowerCase()
-  return movies
-    .filter((m) => m.isActive)
-    .map((m) => {
-      const inTitle = m.title.toLowerCase().includes(needle) ? 4 : 0
-      const inAlt = m.alternativeTitles.some((t) => t.toLowerCase().includes(needle)) ? 2 : 0
-      const inCast = (movieCast[m.id] ?? []).some((a) => a.toLowerCase().includes(needle)) ? 2 : 0
-      const inMeta = `${m.country} ${m.language}`.toLowerCase().includes(needle) ? 1 : 0
-      return { movie: m, score: inTitle + inAlt + inCast + inMeta }
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6)
-    .map((r) => r.movie)
+interface CurrentUser {
+  displayName: string
+  role: string | null
+  isAdmin: boolean
+}
+
+/** D1-backed title search (actor/alt-title/country/language match is SQL-side). */
+async function fetchSearch(needle: string): Promise<Movie[]> {
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(needle)}`)
+    if (!res.ok) return []
+    const data = (await res.json().catch(() => null)) as { ok: boolean; data?: { results?: Movie[] } } | null
+    return data?.ok === true && Array.isArray(data.data?.results) ? (data.data!.results as Movie[]) : []
+  } catch {
+    return []
+  }
+}
+
+function displayInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'SF'
+  const first = parts[0][0]
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : ''
+  return (first + last).toUpperCase()
 }
 
 export function SiteHeader() {
   const router = useRouter()
   const pathname = usePathname()
-  const { isSignedIn, signOut } = useAuth()
+  const { isLoaded, isSignedIn, signOut } = useAuth()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Movie[]>([])
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [user, setUser] = useState<CurrentUser | null>(null)
 
-  // Debounced live matching over titles, alt titles, cast, country, language.
+  // Debounced live matching against the D1-backed /api/search endpoint.
   useEffect(() => {
     const trimmed = query.trim()
     if (trimmed.length === 0) {
@@ -73,13 +83,28 @@ export function SiteHeader() {
       setActiveIndex(-1)
       return
     }
-    const timer = setTimeout(() => {
-      setResults(searchMovies(trimmed))
+    const timer = setTimeout(async () => {
+      setResults(await fetchSearch(trimmed))
       setActiveIndex(-1)
       setOpen(true)
     }, 120)
     return () => clearTimeout(timer)
   }, [query])
+
+  // Real signed-in identity from the DB-backed /api/me (replaces the old demo user).
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setUser(null)
+      return
+    }
+    fetch('/api/me')
+      .then((r) => r.json().catch(() => null))
+      .then((data) => {
+        const u = data?.ok === true ? data.data?.user : null
+        setUser(u ? { displayName: u.displayName ?? 'Viewer', role: u.role ?? null, isAdmin: u.role === 'admin' } : null)
+      })
+      .catch(() => {})
+  }, [isLoaded, isSignedIn])
 
   // Active nav item renders as ember gradient text (audit 5.4)
   const navItems = [
@@ -113,13 +138,9 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0A0B0F]/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:gap-6 sm:px-6 lg:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-ember text-[#14150E] shadow-[0_4px_16px_-4px_rgba(217,146,50,0.6)]">
-            <Clapperboard className="size-5" />
-          </span>
-          <span className="font-serif text-xl font-bold tracking-tight">
-            Sabi<span className="text-ember-gradient">Flix</span>
-          </span>
+        <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="SabiFlix home">
+          <SabiflixSymbol decorative className="h-9" />
+          <SabiflixWordmark className="hidden h-5 w-auto sm:block" />
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -277,7 +298,7 @@ export function SiteHeader() {
             >
               <Avatar className="size-9 border border-primary/40">
                 <AvatarFallback className="bg-primary/15 text-primary">
-                  {mockUser.initials}
+                  {user ? displayInitials(user.displayName) : 'SF'}
                 </AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>
@@ -285,9 +306,9 @@ export function SiteHeader() {
               <DropdownMenuGroup>
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span className="font-medium">{mockUser.displayName}</span>
+                    <span className="font-medium">{user?.displayName ?? 'Your account'}</span>
                     <span className="text-xs font-normal text-muted-foreground">
-                      {mockUser.email}
+                      {user?.role ? (user.role === 'admin' ? 'Administrator' : 'Member') : 'SabiFlix member'}
                     </span>
                   </div>
                 </DropdownMenuLabel>
@@ -300,7 +321,7 @@ export function SiteHeader() {
                   <User />
                   Profile
                 </DropdownMenuItem>
-                {mockUser.isAdmin ? (
+                {user?.isAdmin ? (
                   <DropdownMenuItem onClick={() => router.push('/admin')}>
                     <Shield />
                     Admin Console
@@ -311,8 +332,7 @@ export function SiteHeader() {
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => {
-                  signOut()
-                  router.push('/')
+                  void signOut().then(() => router.push('/'))
                 }}
               >
                 <LogOut />

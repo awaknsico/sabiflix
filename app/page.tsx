@@ -10,19 +10,27 @@ import { ContinueWatching } from '@/components/continue-watching'
 import { WatchlistRow } from '@/components/watchlist-row'
 import { NewSinceVisit } from '@/components/new-since-visit'
 import { MostWatchedRow } from '@/components/most-watched-row'
-import { movies, playlists, getPlaylistMovies } from '@/lib/mock-data'
+import { getFeaturedPlaylists, getPublishedEntries } from '@/lib/server-catalog'
 
-export default function HomePage() {
-  const featuredPlaylists = playlists.filter((p) => p.isFeatured)
-  const latest = [...movies]
+/** The seeded "Curator's Picks" playlist id (see d1/seed.sql). */
+const CURATORS_PICKS_ID = '0190c0de-3000-7000-8000-000000000001'
+
+export const dynamic = 'force-dynamic'
+
+export default async function HomePage() {
+  // Every row below is served by Cloudflare D1 — no bundled mock catalog.
+  const publishedEntries = await getPublishedEntries()
+  const featuredPlaylists = await getFeaturedPlaylists(publishedEntries)
+  const catalog = publishedEntries.map((e) => e.movie)
+
+  const latest = [...catalog]
     .filter((m) => m.isActive)
     .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
     .slice(0, 10)
 
   /* Hero reel — the Curator's Picks playlist doubles as the featured backdrop. */
-  const heroSlides: HeroSlide[] = getPlaylistMovies(
-    playlists.find((p) => p.id === 'pl-editors-picks') ?? playlists[0],
-  )
+  const heroSource = (featuredPlaylists.find((p) => p.id === CURATORS_PICKS_ID) ?? featuredPlaylists[0])
+  const heroSlides: HeroSlide[] = (heroSource?.movies ?? [])
     .filter((m) => m.isActive)
     .map((m) => ({ id: m.id, title: m.title, year: m.year, image: m.posterUrl }))
 
@@ -69,10 +77,10 @@ export default function HomePage() {
         </HeroSlideshow>
 
         {/* Continue watching — pick up where you left off */}
-        <ContinueWatching />
+        <ContinueWatching catalog={catalog} />
 
         {/* Your watchlist — renders once the viewer has saved something */}
-        <WatchlistRow />
+        <WatchlistRow catalog={catalog} />
 
         {/* Featured Playlists */}
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-12">
@@ -81,14 +89,14 @@ export default function HomePage() {
               key={playlist.id}
               index={i + 1}
               title={playlist.name}
-              description={playlist.description}
-              movies={getPlaylistMovies(playlist)}
+              description={playlist.description ?? undefined}
+              movies={playlist.movies}
             />
           ))}
         </div>
 
         {/* Most watched — community pulse, computed from watch history */}
-        <MostWatchedRow />
+        <MostWatchedRow catalog={catalog} />
 
         {/* Latest additions */}
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -103,7 +111,7 @@ export default function HomePage() {
               <p className="text-sm text-muted-foreground">
                 Freshly curated and added to the library.
               </p>
-              <NewSinceVisit />
+              <NewSinceVisit catalog={catalog} />
             </div>
             <Button
               variant="ghost"
