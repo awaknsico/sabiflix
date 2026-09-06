@@ -4,9 +4,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import type { Movie } from '@/lib/types'
-import { resumeCandidates, useWatchHistory } from '@/lib/watch-history'
+import { resumeCandidates } from '@/lib/watch-history'
 import type { WatchHistoryItem } from '@/lib/watch-history'
 import { cn } from '@/lib/utils'
+import { useHomepageData } from '@/components/homepage/homepage-data-context'
 
 function formatDuration(totalSeconds: number) {
   const mins = Math.max(1, Math.round(totalSeconds / 60))
@@ -19,12 +20,14 @@ function formatDuration(totalSeconds: number) {
 /**
  * "Pick up where you left off" — the quiet return-rate row. Reads live watch
  * history and links straight into the player at the saved position (`?t=`).
+ *
+ * Uses shared homepage data to avoid duplicate API calls.
  */
 export function ContinueWatching({ catalog }: { catalog: Movie[] }) {
-  const { entries, ready, remove } = useWatchHistory(catalog.map((movie) => movie.id))
+  const { watchHistory, ready, removeFromHistory } = useHomepageData()
   const movieById = new Map(catalog.map((m) => [m.id, m] as const))
 
-  const items = resumeCandidates(entries, { limit: 5 })
+  const items = resumeCandidates(watchHistory, { limit: 5 })
     .map((entry) => ({ entry, movie: movieById.get(entry.movieId) }))
     .filter((item): item is { entry: WatchHistoryItem; movie: Movie } =>
       Boolean(item.movie && item.movie.isActive),
@@ -69,7 +72,7 @@ export function ContinueWatching({ catalog }: { catalog: Movie[] }) {
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    remove(movie.id)
+                    removeFromHistory(movie.id)
                   }}
                   className="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-1.5 text-white/70 backdrop-blur-sm transition-colors hover:bg-black/80 hover:text-white focus-visible:outline-2 focus-visible:outline-ring"
                 >

@@ -2,17 +2,19 @@
 
 import { MovieCard } from '@/components/movie-card'
 import type { Movie } from '@/lib/types'
-import { useWatchlist } from '@/lib/watchlist'
+import { useHomepageData } from '@/components/homepage/homepage-data-context'
 
 /**
  * "Your watchlist" home row — only renders once hydration has read the store
  * and the viewer has actually saved something. Renders nothing otherwise.
+ *
+ * Uses shared homepage data to avoid duplicate API calls.
  */
 export function WatchlistRow({ catalog }: { catalog: Movie[] }) {
-  const { ids, ready } = useWatchlist(catalog.map((movie) => movie.id))
+  const { watchlistIds, ready } = useHomepageData()
   const movieById = new Map(catalog.map((m) => [m.id, m] as const))
 
-  const movies = ids
+  const movies = watchlistIds
     .map((id) => movieById.get(id))
     .filter((m): m is Movie => Boolean(m && m.isActive))
     .slice(0, 5)

@@ -3,6 +3,7 @@ import { ArrowRight, BadgeCheck, Play, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
+import { HomepageDataProvider } from '@/components/homepage/homepage-data-context'
 import { MovieCarousel } from '@/components/movie-carousel'
 import { MovieCard } from '@/components/movie-card'
 import { HeroSlideshow, type HeroSlide } from '@/components/hero-slideshow'
@@ -33,6 +34,9 @@ export default async function HomePage() {
   const heroSlides: HeroSlide[] = (heroSource?.movies ?? [])
     .filter((m) => m.isActive)
     .map((m) => ({ id: m.id, title: m.title, year: m.year, image: m.posterUrl }))
+
+  // Extract movie IDs for filtering watch history/watchlist
+  const movieIds = catalog.map((m) => m.id)
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -76,11 +80,14 @@ export default async function HomePage() {
           </div>
         </HeroSlideshow>
 
-        {/* Continue watching — pick up where you left off */}
-        <ContinueWatching catalog={catalog} />
+        {/* Shared data provider — fetches watch history & watchlist once for all rows */}
+        <HomepageDataProvider movieIds={movieIds}>
+          {/* Continue watching — pick up where you left off */}
+          <ContinueWatching catalog={catalog} />
 
-        {/* Your watchlist — renders once the viewer has saved something */}
-        <WatchlistRow catalog={catalog} />
+          {/* Your watchlist — renders once the viewer has saved something */}
+          <WatchlistRow catalog={catalog} />
+        </HomepageDataProvider>
 
         {/* Featured Playlists */}
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-12">
