@@ -317,7 +317,7 @@ export function SiteHeader() {
                   <LayoutDashboard />
                   Dashboard
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+                <DropdownMenuItem onClick={() => router.push('/profile')}>
                   <User />
                   Profile
                 </DropdownMenuItem>

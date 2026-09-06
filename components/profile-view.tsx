@@ -1,0 +1,234 @@
+﻿'use client'
+
+import { useEffect, useState } from 'react'
+import { useUser } from '@clerk/nextjs'
+import { User, Mail, Shield, Calendar } from 'lucide-react'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { Skeleton } from '@/components/ui/skeleton'
+
+interface ProfileUser {
+  id: string
+  displayName: string
+  role: 'admin' | 'creator' | 'user'
+  status: 'active' | 'suspended'
+  avatarUrl: string | null
+  email?: string
+  createdAt?: string
+}
+
+function formatDate(iso: string | undefined): string {
+  if (!iso) return 'Unknown'
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+const roleVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
+  admin: 'default',
+  creator: 'secondary',
+  user: 'outline',
+}
+export function ProfileView() {
+  const { user: clerkUser } = useUser()
+  const [profile, setProfile] = useState<ProfileUser | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/me')
+      .then((r) => r.json().catch(() => null))
+      .then((data) => {
+        if (cancelled) return
+        if (data?.ok === true && data.data?.user) {
+          setProfile({
+            ...data.data.user,
+            email: clerkUser?.primaryEmailAddress?.emailAddress,
+            createdAt: clerkUser?.createdAt
+              ? new Date(clerkUser.createdAt).toISOString()
+              : undefined,
+          })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error('Failed to load profile', {
+            description: 'Please try again later.',
+          })
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [clerkUser])
+
+  if (loading) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <Skeleton className="h-9 w-56" />
+            <Skeleton className="mt-2 h-5 w-80" />
+          </div>
+        </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <User />
+            </EmptyMedia>
+            <EmptyTitle>Profile not found</EmptyTitle>
+            <EmptyDescription>
+              We couldn&apos;t load your profile information. Please try again later.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
+    )
+  }
+  return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-serif text-3xl font-bold tracking-tight">
+            Your Profile
+          </h1>
+          <p className="text-muted-foreground">
+            Manage your account details and view your activity.
+          </p>
+        </div>
+        <Badge variant={roleVariant[profile.role]} className="capitalize">
+          {profile.role}
+        </Badge>
+      </div>
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="size-5 text-primary" />
+              Account Information
+            </CardTitle>
+            <CardDescription>Your personal details on SabiFlix.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-muted-foreground">
+                Display Name
+              </span>
+              <span className="text-foreground">{profile.displayName}</span>
+            </div>
+            {profile.email && (
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Email
+                </span>
+                <span className="flex items-center gap-2 text-foreground">
+                  <Mail className="size-4 text-muted-foreground" />
+                  {profile.email}
+                </span>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-muted-foreground">
+                Member Status
+              </span>
+              <span className="flex items-center gap-2 text-foreground">
+                <Shield className="size-4 text-muted-foreground" />
+                <span className="capitalize">{profile.status}</span>
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="size-5 text-primary" />
+              Membership
+            </CardTitle>
+            <CardDescription>Your role and membership details.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-muted-foreground">
+                Role
+              </span>
+              <Badge variant={roleVariant[profile.role]} className="w-fit capitalize">
+                {profile.role === 'admin'
+                  ? 'Administrator'
+                  : profile.role === 'creator'
+                    ? 'Creator'
+                    : 'Member'}
+              </Badge>
+            </div>
+            {profile.createdAt && (
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Member Since
+                </span>
+                <span className="text-foreground">
+                  {formatDate(profile.createdAt)}
+                </span>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-muted-foreground">
+                Account ID
+              </span>
+              <span className="font-mono text-xs text-muted-foreground">
+                {profile.id}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common account actions.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={() => window.location.href = '/dashboard'}>
+              Go to Dashboard
+            </Button>
+            <Button variant="outline" onClick={() => window.location.href = '/catalog'}>
+              Browse Catalog
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
