@@ -36,17 +36,24 @@ export async function rateLimit(
   windowSeconds = 60,
 ): Promise<RateLimitResult> {
   const now = Date.now()
-  const redis = getRedis()
+  const redisClient = getRedis()
 
-  if (redis) {
+  if (redisClient) {
     // Upstash fixed-window
-    const windowKey = `rl:${key}:${Math.floor(now / 1000 / windowSeconds)}`
-    const count = await redis.incr(windowKey)
-    if (count === 1) await redis.expire(windowKey, windowSeconds)
-    return {
-      allowed: count <= limit,
-      remaining: Math.max(0, limit - count),
-      resetAt: Math.floor(now / 1000 / windowSeconds) * windowSeconds * 1000 + windowSeconds * 1000,
+    try {
+      const windowKey = `rl:${key}:${Math.floor(now / 1000 / windowSeconds)}`
+      const count = await redisClient.incr(windowKey)
+      if (count === 1) await redisClient.expire(windowKey, windowSeconds)
+      return {
+        allowed: count <= limit,
+        remaining: Math.max(0, limit - count),
+        resetAt: Math.floor(now / 1000 / windowSeconds) * windowSeconds * 1000 + windowSeconds * 1000,
+      }
+    } catch (error) {
+      // A Redis outage must not take public APIs down with it. Continue with
+      // the process-local limiter until the remote service recovers.
+      console.error('[rateLimit] Redis unavailable; using memory fallback', error)
+      redis = null
     }
   }
 

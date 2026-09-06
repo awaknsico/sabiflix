@@ -28,10 +28,17 @@ const isProtectedRoute = createRouteMatcher([
   '/api/reviews(.*)',
   '/api/admin(.*)',
 ])
+const isProtectedPage = createRouteMatcher(['/dashboard(.*)', '/profile(.*)'])
 
 export default clerkMiddleware(async (auth, request) => {
   if (isProtectedRoute(request)) {
-    await auth.protect()
+    if (isProtectedPage(request)) {
+      const signInUrl = new URL('/sign-in', request.url)
+      signInUrl.searchParams.set('redirect_url', request.url)
+      await auth.protect({}, { unauthenticatedUrl: signInUrl.toString() })
+    } else {
+      await auth.protect()
+    }
   }
 })
 

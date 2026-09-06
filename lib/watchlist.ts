@@ -1,82 +1,95 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 /**
- * Prototype watchlist ("save for later") state.
+ * Server-backed watchlist ("save for later") state.
  *
- * The list lives in localStorage and is broadcast through a custom event
- * (+ `storage` for other tabs) so every mounted consumer stays in sync.
- * Starts empty — the demo favorites that used to ship in
- * `lib/mock-data.ts` have been removed.
+ * Reads from /api/watchlist and toggles via the same route. The list is the
+ * server's shape (one row per film per user), sorted by most-recently-added
+ * first so consumers can render straight through.
  */
 
-const KEY = 'sabiflix:watchlist'
-const EVENT = 'sabiflix:watchlist-change'
+/* ------------------------------------------------------------------ */
+/* API shapes                                                          */
+/* ------------------------------------------------------------------ */
 
-function subscribe(callback: () => void) {
-  window.addEventListener(EVENT, callback)
-  window.addEventListener('storage', callback)
-  return () => {
-    window.removeEventListener(EVENT, callback)
-    window.removeEventListener('storage', callback)
-  }
+interface WatchlistApiItem {
+  movieId: string
+  title: string
+  posterUrl: string | null
+  year: number | null
+  category: string | null
+  addedAt: number /* epoch seconds */
 }
 
-/** Raw snapshot — a stable string (or null when unset / on the server). */
-function getSnapshot(): string | null {
-  return typeof window !== 'undefined' ? window.localStorage.getItem(KEY) : null
+interface WatchlistApiResponse {
+  ok: boolean
+  data?: { items: WatchlistApiItem[]; added?: boolean; removed?: boolean }
+  error?: string
 }
 
-function readCurrent(): string[] {
-  const raw = getSnapshot()
-  if (raw === null) return []
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    return Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === 'string')
-      : []
-  } catch {
-    return []
-  }
-}
-
-function writeNext(ids: string[]) {
-  window.localStorage.setItem(KEY, JSON.stringify(ids))
-  window.dispatchEvent(new Event(EVENT))
-}
+/* ------------------------------------------------------------------ */
+/* Hook                                                                */
+/* ------------------------------------------------------------------ */
 
 export function useWatchlist(validMovieIds?: readonly string[]) {
-  const raw = useSyncExternalStore(subscribe, getSnapshot, () => null)
+  const [ids, setIds] = useState<string[]>([])
+  const [ready, setReady] = useState(false)
 
   const validIdsKey = validMovieIds?.join('\u0000')
 
+  /* Fetch the watchlist from the server on mount. */
   useEffect(() => {
-    if (!validMovieIds?.length) return
+    let cancelled = false
+    fetch('/api/watchlist')
+      .then((r) => r.json())
+      .then((data: WatchlistApiResponse) => {
+        if (cancelled) return
+        if (data.ok && data.data?.items) {
+          setIds(data.data.items.map((i) => i.movieId))
+        }
+        setReady(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        /* 401 (signed-out) or network error → empty state, ready to render */
+        setReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /* In-memory filter against the active catalog (replaces localStorage cleanup). */
+  const filteredIds = useMemo(() => {
+    if (!validMovieIds?.length) return ids
     const validIds = new Set(validMovieIds)
-    const current = readCurrent()
-    const cleaned = current.filter((id) => validIds.has(id))
-    if (cleaned.length !== current.length) writeNext(cleaned)
-  }, [validIdsKey])
+    return ids.filter((id) => validIds.has(id))
+  }, [ids, validIdsKey])
 
-  // `ready` flips after hydration so consumers can avoid flashing the
-  // signed-out/empty state before localStorage has actually been read.
-  const [ready, setReady] = useState(false)
-  useEffect(() => {
-    setReady(true)
+  const has = useCallback((movieId: string) => filteredIds.includes(movieId), [filteredIds])
+
+  const toggle = useCallback(async (movieId: string) => {
+    try {
+      const res = await fetch('/api/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ movieId }),
+      })
+      const data = await res.json()
+      if (data.ok && data.data?.added !== undefined) {
+        const added = data.data.added
+        setIds((prev) =>
+          added
+            ? [movieId, ...prev.filter((id) => id !== movieId)]
+            : prev.filter((id) => id !== movieId),
+        )
+      }
+    } catch {
+      /* Silently fail — the toggle will retry on the next click. */
+    }
   }, [])
 
-  const ids = useMemo(() => readCurrent(), [raw])
-  const has = useCallback((movieId: string) => ids.includes(movieId), [ids])
-
-  const toggle = useCallback((movieId: string) => {
-    const current = readCurrent()
-    writeNext(
-      current.includes(movieId)
-        ? current.filter((id) => id !== movieId)
-        : [movieId, ...current],
-    )
-  }, [])
-
-  return { ids, ready, has, toggle }
+  return { ids: filteredIds, ready, has, toggle }
 }

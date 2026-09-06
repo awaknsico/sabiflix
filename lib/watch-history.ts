@@ -1,22 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Movie, WatchHistoryEntry } from '@/lib/types'
 
 /**
- * Prototype watch-history state.
+ * Server-backed watch history state.
  *
- * Mirrors the `watchlist.ts` pattern: the list lives in localStorage,
- * broadcast through a custom event (+ `storage` for other tabs) so every
- * mounted consumer stays in sync. Starts empty — the demo watch history that
- * used to ship in `lib/mock-data.ts` has been removed.
- *
+ * Reads from /api/watch-history and writes progress to the same route.
  * Entries are upserted per movie (one row per film), always sorted by last
  * activity (`updatedAt`) descending so consumers can render straight through.
+ *
+ * The API stores timestamps as epoch seconds; we convert to ISO-8601 strings
+ * at the boundary so the rest of the codebase stays unchanged.
  */
-
-const KEY = 'sabiflix:watch-history'
-const EVENT = 'sabiflix:watch-history-change'
 
 /** Entries at/above this completion ratio count as "finished". */
 export const COMPLETE_RATIO = 0.95
@@ -28,57 +24,48 @@ export interface WatchHistoryItem extends WatchHistoryEntry {
 
 export type WatchPeriod = 'week' | 'all'
 
-function subscribe(callback: () => void) {
-  window.addEventListener(EVENT, callback)
-  window.addEventListener('storage', callback)
-  return () => {
-    window.removeEventListener(EVENT, callback)
-    window.removeEventListener('storage', callback)
-  }
+/* ------------------------------------------------------------------ */
+/* API shapes                                                          */
+/* ------------------------------------------------------------------ */
+
+interface HistoryApiItem {
+  movieId: string
+  title: string
+  posterUrl: string | null
+  progressSeconds: number
+  durationSeconds: number
+  updatedAt: number /* epoch seconds */
 }
 
-/** Raw snapshot — a stable string (or null when unset / on the server). */
-function getSnapshot(): string | null {
-  return typeof window !== 'undefined' ? window.localStorage.getItem(KEY) : null
+interface HistoryApiResponse {
+  ok: boolean
+  data?: { items: HistoryApiItem[]; entry?: HistoryApiItem }
+  error?: string
 }
 
-function normalize(entry: WatchHistoryEntry): WatchHistoryItem {
-  const updatedAt = entry.updatedAt ?? entry.watchedAt
-   return {
-    ...entry,
+/* ------------------------------------------------------------------ */
+/* Conversion helpers                                                  */
+/* ------------------------------------------------------------------ */
+
+function apiToItem(entry: HistoryApiItem): WatchHistoryItem {
+  const updatedAt = new Date(entry.updatedAt * 1000).toISOString()
+  return {
+    id: `wh-${entry.movieId}`,
+    movieId: entry.movieId,
+    watchedAt: updatedAt,
+    progressSeconds: entry.progressSeconds,
+    durationSeconds: entry.durationSeconds,
     updatedAt,
     completedAt:
-      entry.completedAt ??
-      (entry.durationSeconds > 0 && entry.progressSeconds / entry.durationSeconds >= COMPLETE_RATIO
-        ? entry.watchedAt
-        : null),
+      entry.durationSeconds > 0 && entry.progressSeconds / entry.durationSeconds >= COMPLETE_RATIO
+        ? updatedAt
+        : null,
   }
 }
 
-function parseEntries(raw: string | null): WatchHistoryItem[] {
-  if (raw === null) return []
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed
-      .filter(
-        (e): e is WatchHistoryEntry =>
-          typeof e === 'object' && e !== null && typeof (e as WatchHistoryEntry).movieId === 'string',
-      )
-      .map(normalize)
-      .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
-  } catch {
-    return []
-  }
-}
-
-function writeNext(entries: WatchHistoryItem[]) {
-  window.localStorage.setItem(
-    KEY,
-    JSON.stringify([...entries].sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))),
-  )
-  window.dispatchEvent(new Event(EVENT))
-}
+/* ------------------------------------------------------------------ */
+/* Pure helpers (unchanged — operate on the normalized shape)          */
+/* ------------------------------------------------------------------ */
 
 /** True when the viewer has finished — explicitly completed, or ≥95% in. */
 export function isComplete(
@@ -165,35 +152,52 @@ export function recommendFor(movie: Movie, entries: WatchHistoryItem[], catalog:
     .map((r) => r.movie)
 }
 
+/* ------------------------------------------------------------------ */
+/* Hook                                                                */
+/* ------------------------------------------------------------------ */
+
 export function useWatchHistory(validMovieIds?: readonly string[]) {
-  const raw = useSyncExternalStore(subscribe, getSnapshot, () => null)
+  const [entries, setEntries] = useState<WatchHistoryItem[]>([])
+  const [ready, setReady] = useState(false)
 
   const validIdsKey = validMovieIds?.join('\u0000')
 
+  /* Fetch the resume list from the server on mount. */
   useEffect(() => {
-    if (!validMovieIds?.length) return
-    const validIds = new Set(validMovieIds)
-    const current = parseEntries(getSnapshot())
-    const cleaned = current.filter((entry) => validIds.has(entry.movieId))
-    if (cleaned.length !== current.length) writeNext(cleaned)
-  }, [validIdsKey])
-
-  // `ready` flips after hydration so consumers can avoid flashing the
-  // empty state before localStorage has actually been read.
-  const [ready, setReady] = useState(false)
-  useEffect(() => {
-    setReady(true)
+    let cancelled = false
+    fetch('/api/watch-history')
+      .then((r) => r.json())
+      .then((data: HistoryApiResponse) => {
+        if (cancelled) return
+        if (data.ok && data.data?.items) {
+          setEntries(data.data.items.map(apiToItem))
+        }
+        setReady(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        /* 401 (signed-out) or network error → empty state, ready to render */
+        setReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const entries = useMemo(() => parseEntries(raw), [raw])
+  /* In-memory filter against the active catalog (replaces localStorage cleanup). */
+  const filteredEntries = useMemo(() => {
+    if (!validMovieIds?.length) return entries
+    const validIds = new Set(validMovieIds)
+    return entries.filter((e) => validIds.has(e.movieId))
+  }, [entries, validIdsKey])
 
   const get = useCallback(
-    (movieId: string) => entries.find((e) => e.movieId === movieId),
-    [entries],
+    (movieId: string) => filteredEntries.find((e) => e.movieId === movieId),
+    [filteredEntries],
   )
 
   const recordProgress = useCallback(
-    ({
+    async ({
       movieId,
       progressSeconds,
       durationSeconds,
@@ -202,54 +206,49 @@ export function useWatchHistory(validMovieIds?: readonly string[]) {
       progressSeconds: number
       durationSeconds?: number
     }) => {
-      const current = parseEntries(getSnapshot())
-      const now = new Date().toISOString()
-      const existing = current.find((e) => e.movieId === movieId)
-      const safeDuration =
-        Number.isFinite(durationSeconds) && (durationSeconds ?? 0) > 0
-          ? Math.floor(durationSeconds ?? 0)
-          : existing?.durationSeconds ?? 0
-      const progress = Math.max(0, Math.floor(progressSeconds))
-      const next: WatchHistoryItem = {
-        id: existing?.id ?? `wh-${Date.now()}`,
-        movieId,
-        watchedAt: existing?.watchedAt ?? now,
-        progressSeconds: progress,
-        durationSeconds: safeDuration,
-        updatedAt: now,
-        completedAt: existing?.completedAt ?? null,
+      try {
+        const res = await fetch('/api/watch-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            movieId,
+            progressSeconds: Math.max(0, Math.floor(progressSeconds)),
+            durationSeconds:
+              Number.isFinite(durationSeconds) && (durationSeconds ?? 0) > 0
+                ? Math.floor(durationSeconds!)
+                : undefined,
+          }),
+        })
+        const data = await res.json()
+        if (data.ok && data.data?.entry) {
+          const e = data.data.entry
+          setEntries((prev) => [apiToItem(e), ...prev.filter((x) => x.movieId !== movieId)])
+        }
+      } catch {
+        /* Silently fail — the player retries every 5s, so the next heartbeat
+           will pick up the slack. No local write means no stale data. */
       }
-      writeNext([next, ...current.filter((e) => e.movieId !== movieId)])
     },
     [],
   )
 
-  const markComplete = useCallback((movieId: string) => {
-    const current = parseEntries(getSnapshot())
-    const existing = current.find((e) => e.movieId === movieId)
-    if (!existing) return
-    const now = new Date().toISOString()
-    writeNext(
-      current.map((e) =>
-        e.movieId === movieId
-          ? {
-              ...e,
-              completedAt: now,
-              updatedAt: now,
-              progressSeconds: e.durationSeconds > 0 ? e.durationSeconds : e.progressSeconds,
-            }
-          : e,
-      ),
-    )
-  }, [])
+  const markComplete = useCallback(
+    async (movieId: string) => {
+      const entry = entries.find((e) => e.movieId === movieId)
+      if (!entry) return
+      /* Recording progress == duration flips completedAt on the server. */
+      await recordProgress({ movieId, progressSeconds: entry.durationSeconds, durationSeconds: entry.durationSeconds })
+    },
+    [entries, recordProgress],
+  )
 
   const remove = useCallback((movieId: string) => {
-    writeNext(parseEntries(getSnapshot()).filter((e) => e.movieId !== movieId))
+    setEntries((prev) => prev.filter((e) => e.movieId !== movieId))
   }, [])
 
   const clear = useCallback(() => {
-    writeNext([])
+    setEntries([])
   }, [])
 
-  return { entries, ready, get, recordProgress, markComplete, remove, clear }
+  return { entries: filteredEntries, ready, get, recordProgress, markComplete, remove, clear }
 }
