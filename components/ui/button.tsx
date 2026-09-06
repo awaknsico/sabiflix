@@ -21,11 +21,11 @@ const buttonVariants = cva(
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
         premium: [
-          // Savanna Ember — the one loud "do this" gradient (audit 5.3)
+          // Brand Ember — the one loud "do this" gradient (audit 5.3)
           "bg-ember text-[#14150E]",
           "border-white/15",
-          "shadow-[0_0_0_1px_rgba(240,201,135,0.15),0_8px_28px_-8px_rgba(217,146,50,0.55)]",
-          "hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(240,201,135,0.35),0_10px_34px_-6px_rgba(217,146,50,0.7)]",
+          "shadow-[0_0_0_1px_rgba(242,146,29,0.2),0_8px_28px_-8px_rgba(242,146,29,0.5)]",
+          "hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(247,169,75,0.4),0_10px_34px_-6px_rgba(201,106,10,0.65)]",
           "focus-visible:ring-ember-1/60",
         ].join(" "),
       },

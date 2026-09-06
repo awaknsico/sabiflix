@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Clapperboard } from 'lucide-react'
+import { SabiflixSymbol, SabiflixWordmark } from '@/components/brand/sabiflix-logo'
 
 const footerLinks: { heading: string; links: { label: string; href: string }[] }[] = [
   {
@@ -34,13 +34,9 @@ export function SiteFooter() {
     <footer className="mt-16 border-t border-white/[0.06] bg-sidebar">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
         <div className="col-span-2 flex flex-col gap-3 lg:col-span-1">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-ember text-[#14150E] shadow-[0_4px_16px_-4px_rgba(217,146,50,0.6)]">
-              <Clapperboard className="size-4" />
-            </span>
-            <span className="font-serif text-lg font-bold">
-              Sabi<span className="text-ember-gradient">Flix</span>
-            </span>
+          <Link href="/" className="flex items-center gap-2.5" aria-label="SabiFlix home">
+            <SabiflixSymbol decorative className="h-9" />
+            <SabiflixWordmark className="h-5 w-auto" />
           </Link>
           <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
             A curated, distraction-free home for Nollywood, African films, short films,

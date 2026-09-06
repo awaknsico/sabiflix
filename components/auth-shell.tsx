@@ -1,9 +1,15 @@
 import Image from 'next/image'
+import { SabiflixLogo } from '@/components/brand/sabiflix-logo'
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="flex items-center justify-center px-4 py-12 sm:px-6">{children}</div>
+      <div className="flex items-center justify-center px-4 py-12 sm:px-6">
+        <div className="w-full max-w-sm">
+          <SabiflixLogo symbolClassName="h-10" wordmarkClassName="h-6 w-auto" className="mb-8" />
+          {children}
+        </div>
+      </div>
       <div className="relative hidden overflow-hidden border-l border-border/60 lg:block">
         <Image
           src="/hero-cinema.png"

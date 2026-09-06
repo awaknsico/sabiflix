@@ -57,7 +57,7 @@ export default async function OpengraphImage({
           padding: 64,
           backgroundColor: '#0A0B0F',
           backgroundImage:
-            'radial-gradient(circle at 15% 15%, rgba(240,201,135,0.10), transparent 45%)',
+            'radial-gradient(circle at 15% 15%, rgba(242,146,29,0.10), transparent 45%)',
         }}
       >
         {posterSrc ? (
@@ -90,7 +90,7 @@ export default async function OpengraphImage({
               display: 'flex',
               fontSize: 22,
               letterSpacing: 6,
-              color: '#F0C987',
+              color: '#F2921D',
               fontWeight: 700,
             }}
           >
@@ -126,13 +126,13 @@ export default async function OpengraphImage({
                   borderRadius: 999,
                   border:
                     movie.curationType === 'admin'
-                      ? '1px solid rgba(240,201,135,0.4)'
+                      ? '1px solid rgba(242,146,29,0.4)'
                       : movie.curationType === 'requested'
                         ? '1px solid rgba(28,183,255,0.4)'
                         : '1px solid rgba(47,245,139,0.4)',
                   color:
                     movie.curationType === 'admin'
-                      ? '#F0C987'
+                      ? '#F2921D'
                       : movie.curationType === 'requested'
                         ? '#1cb7ff'
                         : '#2ff58b',
