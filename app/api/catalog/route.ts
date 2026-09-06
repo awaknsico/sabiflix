@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server'
+import { handler, ok, Errors } from '@/lib/api/envelope'
+import { requireAdmin } from '@/lib/api/auth'
+import { checkRateLimit } from '@/lib/api/rate-limit'
 import {
   getPublishedEntries,
   removePublishedEntry,
@@ -9,29 +11,38 @@ import type { Movie, MovieCategory, MovieSource } from '@/lib/types'
 /**
  * Admin console publish/read/delete for the published catalog.
  * Films written here get a real, navigable `/movie/<id>` page from D1.
+ *
+ * GET  /api/catalog — public: list published catalog
+ * POST /api/catalog — admin only: publish a film
+ * DELETE /api/catalog?id=xxx — admin only: remove a published film
  */
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export const GET = handler(async (request: Request) => {
+  // Rate limit: 60 requests per minute per IP
+  const rateLimit = await checkRateLimit(request, 'catalog', 60, 60)
+  if (!rateLimit.allowed) return rateLimit.response
+
   const entries = await getPublishedEntries()
-  return NextResponse.json({
-    ok: true,
+  return ok({
     movies: entries.map((e) => e.movie),
     sources: entries.map((e) => e.source),
   })
-}
+})
 
 const MOVIE_CATEGORIES = new Set<MovieCategory>(['feature', 'short', 'documentary'])
 
-export async function POST(request: Request) {
+export const POST = handler(async (request: Request) => {
+  await requireAdmin()
   const body = (await request.json().catch(() => null)) as {
     movie?: Partial<Movie>
     source?: Partial<MovieSource>
   } | null
 
   if (!body?.movie?.title?.trim()) {
-    return NextResponse.json({ ok: false, error: 'A title is required to publish.' }, { status: 422 })
+    throw Errors.validation('A title is required to publish.')
   }
 
   const title = body.movie.title.trim()
@@ -75,15 +86,14 @@ export async function POST(request: Request) {
   }
 
   const entry = await upsertPublishedEntry(movie, source)
-  return NextResponse.json({ ok: true, entry })
-}
+  return ok({ entry }, undefined, 201)
+})
 
-export async function DELETE(request: Request) {
+export const DELETE = handler(async (request: Request) => {
+  await requireAdmin()
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  if (!id) {
-    return NextResponse.json({ ok: false, error: 'Missing id parameter.' }, { status: 400 })
-  }
+  if (!id) throw Errors.validation('Missing id parameter.')
   const removed = await removePublishedEntry(id)
-  return NextResponse.json({ ok: removed })
-}
+  return ok({ removed })
+})

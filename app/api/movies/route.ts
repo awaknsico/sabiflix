@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server'
 import { handler, ok, Errors } from '@/lib/api/envelope'
 import { requireAdmin } from '@/lib/api/auth'
+import { checkRateLimit } from '@/lib/api/rate-limit'
 import { movieCreateSchema, movieQuerySchema } from '@/lib/validations'
 import { listMovies, createMovie } from '@/lib/repositories/movies'
 import { epochToIso, nowEpoch } from '@/lib/time'
@@ -17,6 +18,10 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export const GET = handler(async (request: Request) => {
+  // Rate limit: 60 requests per minute per IP
+  const rateLimit = await checkRateLimit(request, 'movies', 60, 60)
+  if (!rateLimit.allowed) return rateLimit.response
+
   const { searchParams } = new URL(request.url)
   const params = movieQuerySchema.parse({
     page: searchParams.get('page') ?? undefined,

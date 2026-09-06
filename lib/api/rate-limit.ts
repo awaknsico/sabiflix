@@ -7,6 +7,8 @@
  */
 
 import { Redis } from '@upstash/redis'
+import { NextResponse } from 'next/server'
+import { fail } from './envelope'
 
 let redis: Redis | null = null
 
@@ -68,4 +70,25 @@ export function clientIp(request: Request): string {
   const xff = request.headers.get('x-forwarded-for')
   if (xff) return xff.split(',')[0].trim()
   return 'unknown'
+}
+
+/**
+ * Apply rate limit check to a request. Returns null if allowed,
+ * or a NextResponse to return early if rate limited.
+ */
+export async function checkRateLimit(
+  request: Request,
+  prefix: string,
+  limit = 60,
+  windowSeconds = 60,
+): Promise<{ allowed: true } | { allowed: false; response: NextResponse }> {
+  const ip = clientIp(request)
+  const result = await rateLimit(`${prefix}:${ip}`, limit, windowSeconds)
+  if (!result.allowed) {
+    return {
+      allowed: false,
+      response: fail('Too many requests', 429, 'RATE_LIMITED'),
+    }
+  }
+  return { allowed: true }
 }

@@ -7,13 +7,21 @@
  *   Events: user.created, user.updated, user.deleted
  */
 
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/api/envelope'
 import { Webhook } from 'svix'
 import { getDB } from '@/lib/db/client'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { syncClerkUser } from '@/lib/api/auth'
 
+/**
+ * Clerk webhook handler — syncs user.create / user.update / user.delete
+ * to our D1 `users` table so the rest of the app can rely on local user rows.
+ *
+ * Configure in Clerk Dashboard → Webhooks → Add endpoint:
+ *   URL: https://your-domain.com/api/clerk/webhook
+ *   Events: user.created, user.updated, user.deleted
+ */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -34,7 +42,7 @@ export async function POST(request: Request) {
       const wh = new Webhook(webhookSecret)
       event = wh.verify(body, headers)
     } catch {
-      return NextResponse.json({ ok: false, error: 'Invalid signature' }, { status: 401 })
+      return fail('Invalid signature', 401, 'INVALID_SIGNATURE')
     }
   } else {
     event = JSON.parse(body)
@@ -76,9 +84,10 @@ export async function POST(request: Request) {
         break
     }
 
-    return NextResponse.json({ ok: true })
+    return ok({ received: true })
   } catch (err) {
     console.error('[Clerk webhook] error:', err)
-    return NextResponse.json({ ok: false, error: 'Webhook processing failed' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Webhook processing failed'
+    return fail(message, 500, 'WEBHOOK_ERROR')
   }
 }

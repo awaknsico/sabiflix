@@ -9,7 +9,7 @@
 import { handler, ok, Errors } from '@/lib/api/envelope'
 import { requireUser } from '@/lib/api/auth'
 import { watchlistToggleSchema } from '@/lib/validations'
-import { getWatchlist, toggleWatchlist, isInWatchlist } from '@/lib/repositories/watchlist'
+import { getWatchlist, toggleWatchlist, removeFromWatchlist } from '@/lib/repositories/watchlist'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -45,7 +45,6 @@ export const DELETE = handler(async (request: Request) => {
   if (!body) throw Errors.validation('Request body must be valid JSON')
 
   const { movieId } = watchlistToggleSchema.parse(body)
-  const wasInWatchlist = await isInWatchlist(user.id, movieId)
-  if (wasInWatchlist) toggleWatchlist(user.id, movieId) // toggle off
-  return ok({ removed: wasInWatchlist })
+  const removed = await removeFromWatchlist(user.id, movieId)
+  return ok({ removed })
 })

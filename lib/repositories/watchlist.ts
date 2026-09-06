@@ -53,3 +53,13 @@ export async function isInWatchlist(userId: string, movieId: string): Promise<bo
     .where(and(eq(watchlist.userId, userId), eq(watchlist.movieId, movieId))).all()
   return !!rows[0]
 }
+
+export async function removeFromWatchlist(userId: string, movieId: string): Promise<boolean> {
+  const d = db()
+  const existing = await d.select().from(watchlist)
+    .where(and(eq(watchlist.userId, userId), eq(watchlist.movieId, movieId))).all()
+  if (!existing[0]) return false
+  await d.delete(watchlist)
+    .where(and(eq(watchlist.userId, userId), eq(watchlist.movieId, movieId)))
+  return true
+}

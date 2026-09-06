@@ -1,49 +1,51 @@
-import { NextResponse } from 'next/server'
+import { handler, ok, Errors } from '@/lib/api/envelope'
+import { checkRateLimit } from '@/lib/api/rate-limit'
 import { resolveYouTubeMeta } from '@/lib/youtube'
 
 /**
- * Resolves a single YouTube URL to its metadata + best thumbnail.
- * GET /api/youtube/meta?url=<encoded>
+ * YouTube metadata resolution endpoints.
+ *
+ * GET  /api/youtube/meta?url=<encoded>  — resolve single URL
+ * POST /api/youtube/meta                — batch resolve { urls: string[] }
  */
-export async function GET(request: Request) {
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+export const GET = handler(async (request: Request) => {
+  // Rate limit: 30 requests per minute per IP (external API call)
+  const rateLimit = await checkRateLimit(request, 'youtube', 30, 60)
+  if (!rateLimit.allowed) return rateLimit.response
+
   const { searchParams } = new URL(request.url)
   const raw = searchParams.get('url') ?? ''
 
   if (!raw.trim()) {
-    return NextResponse.json({ ok: false, error: 'Missing url parameter.' }, { status: 400 })
+    throw Errors.validation('Missing url parameter.')
   }
 
-  try {
-    const meta = await resolveYouTubeMeta(raw)
-    return NextResponse.json({ ok: true, ...meta })
-  } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : 'Could not resolve that video.' },
-      { status: 422 },
-    )
-  }
-}
+  const meta = await resolveYouTubeMeta(raw)
+  return ok(meta)
+})
 
-/**
- * Resolves many URLs at once (batch import on the admin console).
- * POST /api/youtube/meta  body: { urls: string[] }
- */
-export async function POST(request: Request) {
+export const POST = handler(async (request: Request) => {
+  // Rate limit: 10 requests per minute per IP (batch endpoint)
+  const rateLimit = await checkRateLimit(request, 'youtube-batch', 10, 60)
+  if (!rateLimit.allowed) return rateLimit.response
+
   const body = (await request.json().catch(() => null)) as { urls?: unknown } | null
   const urls = Array.isArray(body?.urls) ? body.urls.filter((u): u is string => typeof u === 'string') : []
 
   if (urls.length === 0) {
-    return NextResponse.json({ ok: false, error: 'No URLs provided.' }, { status: 400 })
+    throw Errors.validation('No URLs provided.')
   }
 
   const results = await Promise.all(
     urls.map(async (url) => {
       try {
         const meta = await resolveYouTubeMeta(url)
-        return { ok: true, sourceUrl: url, ...meta }
+        return { sourceUrl: url, ...meta }
       } catch (err) {
         return {
-          ok: false,
           sourceUrl: url,
           error: err instanceof Error ? err.message : 'Could not resolve that video.',
         }
@@ -51,5 +53,5 @@ export async function POST(request: Request) {
     }),
   )
 
-  return NextResponse.json({ ok: true, results })
-}
+  return ok({ results })
+})

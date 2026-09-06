@@ -7,12 +7,17 @@
  */
 
 import { handler, ok } from '@/lib/api/envelope'
+import { checkRateLimit } from '@/lib/api/rate-limit'
 import { searchMovies } from '@/lib/repositories/movies'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export const GET = handler(async (request: Request) => {
+  // Rate limit: 30 requests per minute per IP
+  const rateLimit = await checkRateLimit(request, 'search', 30, 60)
+  if (!rateLimit.allowed) return rateLimit.response
+
   const q = new URL(request.url).searchParams.get('q')?.trim() ?? ''
   if (!q) return ok({ results: [] })
 

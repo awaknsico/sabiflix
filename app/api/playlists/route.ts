@@ -7,13 +7,18 @@
 
 import { handler, ok, Errors } from '@/lib/api/envelope'
 import { requireAdmin } from '@/lib/api/auth'
+import { checkRateLimit } from '@/lib/api/rate-limit'
 import { replacePlaylistMovies } from '@/lib/repositories/playlists'
 import { getAllPlaylists } from '@/lib/server-catalog'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export const GET = handler(async () => {
+export const GET = handler(async (request: Request) => {
+  // Rate limit: 60 requests per minute per IP
+  const rateLimit = await checkRateLimit(request, 'playlists', 60, 60)
+  if (!rateLimit.allowed) return rateLimit.response
+
   const playlists = await getAllPlaylists()
   return ok({
     playlists: playlists.map((p) => ({
