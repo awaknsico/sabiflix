@@ -3,6 +3,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Bricolage_Grotesque, Poppins } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { LocalStorageCleanup } from '@/components/local-storage-cleanup'
 import { PwaRegister } from '@/components/pwa-register'
 import './globals.css'
 
@@ -54,6 +55,7 @@ export default function RootLayout({
         <body className="font-sans antialiased">
           {children}
           <Toaster />
+          <LocalStorageCleanup />
           <PwaRegister />
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </body>
