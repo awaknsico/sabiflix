@@ -13,8 +13,8 @@ import {
 } from '@/components/ui/empty'
 
 /**
- * Prototype-only gate. Real auth is intentionally not implemented — this simply
- * shows a sign-in prompt when the mock session flag is not set.
+ * Sign-in prompt shown when an unauthenticated visitor opens a protected area.
+ * Real auth is Clerk-backed (see proxy.ts) — this is purely the fallback UI.
  */
 export function ProtectedPlaceholder({ area }: { area: string }) {
   return (
@@ -26,8 +26,7 @@ export function ProtectedPlaceholder({ area }: { area: string }) {
           </EmptyMedia>
           <EmptyTitle>Sign in to view {area}</EmptyTitle>
           <EmptyDescription>
-            This is a protected area of the prototype. Sign in to continue — no real
-            account is required.
+            This is a protected area. Sign in to continue — it only takes a moment.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
