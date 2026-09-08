@@ -19,6 +19,8 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "sabiflix"
 database_id = "6b59f3b9-0bf4-46a8-9e1b-5bdb81a9fdb8"
+# Migration files live in d1/migrations (not wrangler's default ./migrations).
+migrations_dir = "d1/migrations"
 
 # R2 bucket for posters and assets (optional)
 # [[r2_buckets]]

@@ -1,6 +1,13 @@
 -- =============================================================================
 -- SabiFlix — D1 migration 0002: align remote schema with the code (Drizzle).
 --
+-- NOTE: this migration repairs one-time schema drift on the production DB and
+-- is NOT idempotent against a database freshly created by 0001 (e.g. a new
+-- environment) — 0001 already creates these columns, so the ALTERs here would
+-- fail. Fresh databases should apply 0001 only and record this migration as
+-- applied in d1_migrations, or baseline directly (see
+-- d1/baseline-migrations-table.sql).
+--
 -- The production D1 database drifted from lib/db/schema.ts (its `watchlist`
 -- table was never created, and watch_history / film_requests / film_submissions
 -- were provisioned with older column names). This migration is additive and
