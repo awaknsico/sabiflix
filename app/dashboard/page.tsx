@@ -16,7 +16,7 @@ export default function DashboardPage() {
       <main className="flex-1">
         {!isLoaded ? (
           <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
-            <Skeleton className="h-9 w-56" />
+            <h1 className="font-serif text-3xl font-bold tracking-tight">Your dashboard</h1>
             <Skeleton className="mt-3 h-5 w-80" />
             <Skeleton className="mt-8 h-10 w-full max-w-md" />
             <div className="mt-6 flex flex-col gap-3">

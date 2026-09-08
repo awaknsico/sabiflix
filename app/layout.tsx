@@ -1,6 +1,6 @@
 import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata, Viewport } from 'next'
-import { Inter, Bricolage_Grotesque, Poppins } from 'next/font/google'
+import { Inter, Bricolage_Grotesque } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { LocalStorageCleanup } from '@/components/local-storage-cleanup'
 import { PwaRegister } from '@/components/pwa-register'
@@ -14,13 +14,6 @@ const inter = Inter({
 const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
   variable: '--font-bricolage',
-})
-
-/** Brand wordmark face — rounded geometric extra-bold ("sabiflix"). */
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['700', '800'],
-  variable: '--font-poppins',
 })
 
 export const metadata: Metadata = {
@@ -49,7 +42,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={`${inter.variable} ${bricolage.variable} ${poppins.variable} bg-background`}
+        className={`${inter.variable} ${bricolage.variable} bg-background`}
       >
         <body className="font-sans antialiased">
           {children}
