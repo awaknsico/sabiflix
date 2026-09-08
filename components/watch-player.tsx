@@ -126,10 +126,13 @@ export function PlayerDialog({
   const [apiFailed, setApiFailed] = useState(false)
   const { recordProgress, markComplete } = useWatchHistory()
   const mountRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<YTPlayerLike | null>(null)
   const durationRef = useRef(0)
   const lastReportedRef = useRef(Math.max(0, Math.floor(startAt)))
   const playingRef = useRef(false)
+  /** Fullscreen + landscape only happen once per playback session. */
+  const landscapeDoneRef = useRef(false)
   /**
    * Autoplay-with-sound recovery window. Browsers that refuse unmuted
    * autoplay pause the video the instant sound is restored. While this window
@@ -142,27 +145,28 @@ export function PlayerDialog({
    * Auto-rotate to landscape on mobile when playback starts. The Screen
    * Orientation API is a progressive enhancement: it only exists on mobile,
    * may be blocked, and iOS requires fullscreen first — every failure is
-   * swallowed so playback is never interrupted.
+   * swallowed so playback is never interrupted. Runs once per session.
    */
   const requestLandscape = useCallback(async () => {
     try {
+      if (landscapeDoneRef.current) return
       if (typeof window === 'undefined') return
       const screenOrientation = (
         window.screen as unknown as { orientation?: { lock?: (o: string) => Promise<void> } }
       ).orientation
       if (!screenOrientation?.lock) return
-      // Fullscreen first — required on iOS for the lock to take effect.
-      const dialogEl = mountRef.current?.parentElement?.parentElement as
-        | (HTMLElement & { requestFullscreen?: () => Promise<void> })
-        | undefined
-      if (dialogEl?.requestFullscreen) {
-        await dialogEl.requestFullscreen().catch(() => {})
+      landscapeDoneRef.current = true
+      // Fullscreen first — required on iOS for the lock to take effect. Target
+      // the dialog root (the fullscreen container), not a nested wrapper.
+      const el = dialogRef.current
+      if (el?.requestFullscreen) {
+        await el.requestFullscreen().catch(() => {})
       }
       await screenOrientation.lock('landscape')
     } catch {
       /* Orientation lock is optional — never block playback on failure. */
     }
-  }, [mountRef])
+  }, [dialogRef])
 
   /** Restore portrait orientation when the player closes. */
   const restoreOrientation = useCallback(async () => {
@@ -226,6 +230,7 @@ export function PlayerDialog({
     // New session — start reporting progress from the resume position.
     lastReportedRef.current = Math.max(0, Math.floor(startAt))
     playingRef.current = false
+    landscapeDoneRef.current = false
 
     loadYouTubeApi()
       .then(() => {
@@ -353,6 +358,7 @@ export function PlayerDialog({
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={`Now playing: ${title}`}
