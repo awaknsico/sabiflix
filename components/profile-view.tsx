@@ -1,8 +1,9 @@
 ﻿'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
-import { User, Mail, Shield, Calendar } from 'lucide-react'
+import { User, Mail, Shield, Calendar, LayoutDashboard } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -127,9 +128,17 @@ export function ProfileView() {
             Manage your account details and view your activity.
           </p>
         </div>
-        <Badge variant={roleVariant[profile.role]} className="capitalize">
-          {profile.role}
-        </Badge>
+        <div className="flex items-center gap-3">
+          {profile.role === 'admin' && (
+            <Button variant="default" size="sm" render={<Link href="/admin" />}>
+              <LayoutDashboard data-icon="inline-start" />
+              CMS
+            </Button>
+          )}
+          <Badge variant={roleVariant[profile.role]} className="capitalize">
+            {profile.role}
+          </Badge>
+        </div>
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
