@@ -138,6 +138,48 @@ export function PlayerDialog({
    */
   const policyResumeRef = useRef({ until: 0, used: false })
 
+  /**
+   * Auto-rotate to landscape on mobile when playback starts. The Screen
+   * Orientation API is a progressive enhancement: it only exists on mobile,
+   * may be blocked, and iOS requires fullscreen first — every failure is
+   * swallowed so playback is never interrupted.
+   */
+  const requestLandscape = useCallback(async () => {
+    try {
+      if (typeof window === 'undefined') return
+      const screenOrientation = (
+        window.screen as unknown as { orientation?: { lock?: (o: string) => Promise<void> } }
+      ).orientation
+      if (!screenOrientation?.lock) return
+      // Fullscreen first — required on iOS for the lock to take effect.
+      const dialogEl = mountRef.current?.parentElement?.parentElement as
+        | (HTMLElement & { requestFullscreen?: () => Promise<void> })
+        | undefined
+      if (dialogEl?.requestFullscreen) {
+        await dialogEl.requestFullscreen().catch(() => {})
+      }
+      await screenOrientation.lock('landscape')
+    } catch {
+      /* Orientation lock is optional — never block playback on failure. */
+    }
+  }, [mountRef])
+
+  /** Restore portrait orientation when the player closes. */
+  const restoreOrientation = useCallback(async () => {
+    try {
+      if (typeof window === 'undefined') return
+      const screenOrientation = (
+        window.screen as unknown as { orientation?: { unlock?: () => void } }
+      ).orientation
+      screenOrientation?.unlock?.()
+      if ((document as Document & { exitFullscreen?: () => Promise<void> }).fullscreenElement) {
+        await document.exitFullscreen?.().catch(() => {})
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   // Persist the current playhead when it moved enough to matter. Called on
   // pause, end, and close so the resume position is always fresh.
   const flushProgress = useCallback(() => {
@@ -153,8 +195,9 @@ export function PlayerDialog({
 
   const handleClose = useCallback(() => {
     flushProgress()
+    void restoreOrientation()
     onClose()
-  }, [flushProgress, onClose])
+  }, [flushProgress, onClose, restoreOrientation])
 
   // Lock scroll + Escape to close while the player is open.
   useEffect(() => {
@@ -241,6 +284,7 @@ export function PlayerDialog({
               if (cancelled) return
               if (event?.data === YT_STATE.PLAYING) {
                 playingRef.current = true
+                void requestLandscape()
               } else if (event?.data === YT_STATE.PAUSED) {
                 playingRef.current = false
                 const recovery = policyResumeRef.current
@@ -283,6 +327,7 @@ export function PlayerDialog({
 
     return () => {
       cancelled = true
+      void restoreOrientation()
       playerRef.current?.destroy?.()
       playerRef.current = null
     }
