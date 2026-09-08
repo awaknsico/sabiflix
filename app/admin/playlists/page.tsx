@@ -41,7 +41,9 @@ export default function AdminPlaylistsPage() {
           setPlaylists(list as PlaylistWithMovies[])
           setPlaylistId((prev) => prev || (list[0]?.id ?? ''))
         }
-        const movies = (cat as any)?.movies
+        /* /api/catalog speaks the standard envelope: { ok, data: { movies } }. */
+        const catData = (cat as any)?.ok === true ? (cat as any)?.data : null
+        const movies = catData?.movies
         if (Array.isArray(movies)) setAllMovies(movies as Movie[])
       })
       .catch(() => {})

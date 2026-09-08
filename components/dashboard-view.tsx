@@ -79,7 +79,9 @@ export function DashboardView() {
       fetch('/api/me').then((r) => r.json().catch(() => null)),
     ])
       .then(([cat, req, sub, me]) => {
-        const movieList = (cat as any)?.movies
+        /* /api/catalog speaks the standard envelope: { ok, data: { movies } }. */
+        const catData = (cat as any)?.ok === true ? (cat as any)?.data : null
+        const movieList = catData?.movies
         if (Array.isArray(movieList)) {
           setMovieById(new Map(movieList.map((m: Movie) => [m.id, m] as const)))
         }
