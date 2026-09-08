@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Loader2, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -64,9 +64,28 @@ export default function AdminMoviesPage() {
   const [form, setForm] = useState(emptyForm)
   const { resolving, meta, error } = useYouTubeMeta(form.youtubeUrl)
 
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('')
+  const [countryFilter, setCountryFilter] = useState<string>('')
+  const [languageFilter, setLanguageFilter] = useState<string>('')
+  const [yearFilter, setYearFilter] = useState<string>('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const activeFilterCount = [categoryFilter, countryFilter, languageFilter, yearFilter].filter(Boolean).length
+
+  const buildQuery = useCallback(() => {
+    const params = new URLSearchParams({ perPage: '1000', sort: 'title', sortDir: 'asc' })
+    if (search.trim()) params.set('q', search.trim())
+    if (categoryFilter) params.set('category', categoryFilter)
+    if (countryFilter) params.set('country', countryFilter)
+    if (languageFilter) params.set('language', languageFilter)
+    if (yearFilter.trim()) params.set('year', yearFilter.trim())
+    return params.toString()
+  }, [search, categoryFilter, countryFilter, languageFilter, yearFilter])
+
   const refreshCatalog = useCallback(async () => {
     try {
-      const res = await fetch('/api/movies?perPage=1000&sort=title&sortDir=asc')
+      const res = await fetch(`/api/movies?${buildQuery()}`)
       const data = await res.json()
       if (!res.ok || !Array.isArray(data?.data?.movies)) throw new Error('Catalog unavailable')
       const movies = data.data.movies as Array<Movie & { youtubeVideoId?: string | null }>
@@ -82,8 +101,9 @@ export default function AdminMoviesPage() {
       setList([])
       setSourcesById({})
     }
-  }, [])
+  }, [buildQuery])
 
+  /* Refetch whenever search or any filter changes. */
   useEffect(() => {
     refreshCatalog()
   }, [refreshCatalog])
@@ -196,6 +216,123 @@ export default function AdminMoviesPage() {
           <Plus data-icon="inline-start" />
           Add New Movie
         </Button>
+      </div>
+
+      {/* Search + Filter bar */}
+      <div className="mt-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search movies by title, synopsis, or actor…"
+                className="pl-9"
+              />
+              {search ? (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="absolute right-1 top-1/2 -translate-y-1/2"
+                  aria-label="Clear search"
+                  onClick={() => setSearch('')}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              ) : null}
+            </div>
+            <Button
+              variant={filtersOpen || activeFilterCount > 0 ? 'secondary' : 'outline'}
+              onClick={() => setFiltersOpen((v) => !v)}
+            >
+              <SlidersHorizontal data-icon="inline-start" />
+              Filters
+              {activeFilterCount > 0 ? (
+                <span className="ml-1 flex size-4 items-center justify-center rounded-full bg-primary text-[0.6rem] text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </Button>
+          </div>
+
+          {filtersOpen ? (
+            <div className="grid grid-cols-2 gap-3 rounded-xl border border-border/60 bg-card/40 p-3 sm:grid-cols-4">
+              <Field>
+                <FieldLabel>Category</FieldLabel>
+                <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v ?? '')}>
+                  <SelectTrigger aria-label="Filter by category">
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All categories</SelectItem>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Country</FieldLabel>
+                <Select value={countryFilter} onValueChange={(v) => setCountryFilter(v ?? '')}>
+                  <SelectTrigger aria-label="Filter by country">
+                    <SelectValue placeholder="All countries" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All countries</SelectItem>
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Language</FieldLabel>
+                <Select value={languageFilter} onValueChange={(v) => setLanguageFilter(v ?? '')}>
+                  <SelectTrigger aria-label="Filter by language">
+                    <SelectValue placeholder="All languages" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All languages</SelectItem>
+                    {LANGUAGES.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Year</FieldLabel>
+                <Input
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  placeholder="e.g. 2023"
+                  inputMode="numeric"
+                />
+              </Field>
+            </div>
+          ) : null}
+
+          {activeFilterCount > 0 && !filtersOpen ? (
+            <button
+              type="button"
+              className="self-start text-xs text-muted-foreground underline-offset-2 hover:underline"
+              onClick={() => {
+                setCategoryFilter('')
+                setCountryFilter('')
+                setLanguageFilter('')
+                setYearFilter('')
+              }}
+            >
+              Clear {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-8">
