@@ -20,8 +20,26 @@ export async function currentUserId(): Promise<string | null> {
 export async function getCurrentUser(): Promise<User | null> {
   const clerkId = await currentUserId()
   if (!clerkId) return null
+
   const rows = await db().select().from(users).where(eq(users.clerkId, clerkId)).all()
-  return rows[0] ?? null
+  if (rows[0]) return rows[0]
+
+  /*
+   * No local `users` row yet. Clerk webhooks only fire for events that happen
+   * after the endpoint is configured — they never backfill existing accounts —
+   * and webhook delivery can lag or fail. A signed-in user can therefore reach
+   * /dashboard with a valid session but no local row, which makes every
+   * requireUser() endpoint (watchlist, watch-history, submissions, requests)
+   * return 401. Self-heal by upserting the Clerk user on demand; if the sync
+   * fails, fall through to the same "not found" result so callers keep the
+   * existing behavior instead of turning into a 500.
+   */
+  try {
+    return await syncClerkUser(clerkId)
+  } catch (err) {
+    console.error('[auth] on-demand Clerk user sync failed:', err)
+    return null
+  }
 }
 
 export async function requireUser(): Promise<User> {

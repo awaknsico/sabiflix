@@ -1,4 +1,3 @@
-import { Analytics } from '@vercel/analytics/next'
 import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Bricolage_Grotesque, Poppins } from 'next/font/google'
@@ -57,7 +56,6 @@ export default function RootLayout({
           <Toaster />
           <LocalStorageCleanup />
           <PwaRegister />
-          {process.env.NODE_ENV === 'production' && <Analytics />}
         </body>
       </html>
     </ClerkProvider>
