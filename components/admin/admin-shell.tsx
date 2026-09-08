@@ -123,7 +123,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <span className="font-serif text-lg font-bold">
             Sabi<span className="text-primary">Flix</span>
           </span>
-          <span className="ml-auto text-xs text-muted-foreground">Admin</span>
+          <Button variant="ghost" size="sm" className="ml-auto" render={<Link href="/" />}>
+            <ArrowLeft data-icon="inline-start" />
+            View Site
+          </Button>
         </div>
         <nav
           className="flex gap-1 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

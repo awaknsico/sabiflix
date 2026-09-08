@@ -66,7 +66,7 @@ export default function AdminMoviesPage() {
 
   const refreshCatalog = useCallback(async () => {
     try {
-      const res = await fetch('/api/movies?perPage=100&sort=title&sortDir=asc')
+      const res = await fetch('/api/movies?perPage=1000&sort=title&sortDir=asc')
       const data = await res.json()
       if (!res.ok || !Array.isArray(data?.data?.movies)) throw new Error('Catalog unavailable')
       const movies = data.data.movies as Array<Movie & { youtubeVideoId?: string | null }>
