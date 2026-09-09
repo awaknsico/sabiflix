@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Loader2, Play, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useWatchHistory } from '@/lib/watch-history'
@@ -131,8 +132,10 @@ export function PlayerDialog({
   const durationRef = useRef(0)
   const lastReportedRef = useRef(Math.max(0, Math.floor(startAt)))
   const playingRef = useRef(false)
-  /** Fullscreen + landscape only happen once per playback session. */
-  const landscapeDoneRef = useRef(false)
+  /** Guards the immersive sequence and re-entry while a session is active. */
+  const immersiveRunningRef = useRef(false)
+  const closingRef = useRef(false)
+  const reenterTimerRef = useRef<number | null>(null)
   /**
    * Autoplay-with-sound recovery window. Browsers that refuse unmuted
    * autoplay pause the video the instant sound is restored. While this window
@@ -142,31 +145,42 @@ export function PlayerDialog({
   const policyResumeRef = useRef({ until: 0, used: false })
 
   /**
-   * Auto-rotate to landscape on mobile when playback starts. The Screen
-   * Orientation API is a progressive enhancement: it only exists on mobile,
-   * may be blocked, and iOS requires fullscreen first — every failure is
-   * swallowed so playback is never interrupted. Runs once per session.
+   * Mobile immersive playback sequence: fullscreen first, then landscape, then
+   * the YouTube iframe itself fullscreen. Browser fullscreen APIs must be
+   * awaited before the next step, because WebKit rejects screen-orientation
+   * locks unless the document is fullscreen. Failures never block playback.
    */
-  const requestLandscape = useCallback(async () => {
+  const enterImmersivePlayback = useCallback(async () => {
+    if (typeof window === 'undefined') return
+    if (immersiveRunningRef.current) return
+    immersiveRunningRef.current = true
     try {
-      if (landscapeDoneRef.current) return
-      if (typeof window === 'undefined') return
-      const screenOrientation = (
-        window.screen as unknown as { orientation?: { lock?: (o: string) => Promise<void> } }
-      ).orientation
-      if (!screenOrientation?.lock) return
-      landscapeDoneRef.current = true
-      // Fullscreen first — required on iOS for the lock to take effect. Target
-      // the dialog root (the fullscreen container), not a nested wrapper.
-      const el = dialogRef.current
-      if (el?.requestFullscreen) {
-        await el.requestFullscreen().catch(() => {})
+      const dialogEl = dialogRef.current
+      if (dialogEl && !document.fullscreenElement && typeof dialogEl.requestFullscreen === 'function') {
+        await dialogEl.requestFullscreen().catch(() => {})
       }
-      await screenOrientation.lock('landscape')
-    } catch {
-      /* Orientation lock is optional — never block playback on failure. */
+
+      const orientation = (
+        window.screen as unknown as {
+          orientation?: { lock?: (value: string) => Promise<void> }
+        }
+      ).orientation
+      if (orientation && typeof orientation.lock === 'function') {
+        await orientation.lock('landscape').catch(() => {})
+      }
+
+      const iframe = mountRef.current?.querySelector('iframe')
+      if (
+        iframe &&
+        document.fullscreenElement !== iframe &&
+        typeof iframe.requestFullscreen === 'function'
+      ) {
+        await iframe.requestFullscreen().catch(() => {})
+      }
+    } finally {
+      immersiveRunningRef.current = false
     }
-  }, [dialogRef])
+  }, [dialogRef, mountRef])
 
   /** Restore portrait orientation when the player closes. */
   const restoreOrientation = useCallback(async () => {
@@ -198,12 +212,19 @@ export function PlayerDialog({
   }, [movieId, recordProgress])
 
   const handleClose = useCallback(() => {
+    closingRef.current = true
+    if (reenterTimerRef.current !== null) {
+      window.clearTimeout(reenterTimerRef.current)
+      reenterTimerRef.current = null
+    }
     flushProgress()
     void restoreOrientation()
     onClose()
   }, [flushProgress, onClose, restoreOrientation])
 
-  // Lock scroll + Escape to close while the player is open.
+  // Lock scroll + Escape to close while the player is open. Also re-enter the
+  // YouTube iframe fullscreen if the browser leaves fullscreen while the video
+  // is still playing, without firing while the dialog is being closed.
   useEffect(() => {
     if (!open) return
     const original = document.body.style.overflow
@@ -211,12 +232,25 @@ export function PlayerDialog({
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') handleClose()
     }
+    function onFullscreenChange() {
+      if (closingRef.current) return
+      if (!playingRef.current) return
+      if (document.fullscreenElement) return
+      if (reenterTimerRef.current !== null) return
+      reenterTimerRef.current = window.setTimeout(() => {
+        reenterTimerRef.current = null
+        if (closingRef.current || !playingRef.current || document.fullscreenElement) return
+        void enterImmersivePlayback()
+      }, 300)
+    }
     window.addEventListener('keydown', onKey)
+    document.addEventListener('fullscreenchange', onFullscreenChange)
     return () => {
       document.body.style.overflow = original
       window.removeEventListener('keydown', onKey)
+      document.removeEventListener('fullscreenchange', onFullscreenChange)
     }
-  }, [open, handleClose])
+  }, [open, handleClose, enterImmersivePlayback])
 
   // Initialise the IFrame API player when opened.
   useEffect(() => {
@@ -230,7 +264,12 @@ export function PlayerDialog({
     // New session — start reporting progress from the resume position.
     lastReportedRef.current = Math.max(0, Math.floor(startAt))
     playingRef.current = false
-    landscapeDoneRef.current = false
+    immersiveRunningRef.current = false
+    closingRef.current = false
+    if (reenterTimerRef.current !== null) {
+      window.clearTimeout(reenterTimerRef.current)
+      reenterTimerRef.current = null
+    }
 
     loadYouTubeApi()
       .then(() => {
@@ -289,7 +328,10 @@ export function PlayerDialog({
               if (cancelled) return
               if (event?.data === YT_STATE.PLAYING) {
                 playingRef.current = true
-                void requestLandscape()
+                const iframe = mountRef.current?.querySelector('iframe')
+                if (!iframe || document.fullscreenElement !== iframe) {
+                  void enterImmersivePlayback()
+                }
               } else if (event?.data === YT_STATE.PAUSED) {
                 playingRef.current = false
                 const recovery = policyResumeRef.current
@@ -332,6 +374,10 @@ export function PlayerDialog({
 
     return () => {
       cancelled = true
+      if (reenterTimerRef.current !== null) {
+        window.clearTimeout(reenterTimerRef.current)
+        reenterTimerRef.current = null
+      }
       void restoreOrientation()
       playerRef.current?.destroy?.()
       playerRef.current = null
