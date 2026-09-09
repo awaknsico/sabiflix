@@ -422,7 +422,7 @@ export function PlayerDialog({
             <span className="text-sm">Loading film…</span>
           </div>
         ) : null}
-        <div className={isFullscreen ? 'flex aspect-video max-h-full w-full items-center justify-center' : 'mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6'}>
+        <div className={isFullscreen ? 'flex max-h-full w-full flex-1 items-center justify-center overflow-hidden' : 'mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6'}>
           {apiFailed ? (
             /* Graceful fallback when the IFrame API can't load: a plain embed
                with the same distraction-free configuration. It autoplays muted
@@ -434,11 +434,13 @@ export function PlayerDialog({
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
-              className="size-full"
+              className="aspect-video max-h-full w-auto max-w-full"
             />
           ) : (
-            /* The IFrame API replaces this element with the player iframe. */
-            <div ref={mountRef} className="size-full" />
+            /* The IFrame API replaces this element with the player iframe.
+               Contained (not stretched): the video keeps its 16:9 box and its
+               black letterbox borders instead of zooming to fill the screen. */
+            <div ref={mountRef} className="aspect-video max-h-full w-auto max-w-full" />
           )}
         </div>
       </div>
