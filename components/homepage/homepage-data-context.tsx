@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { MovieCardDto } from '@/lib/types'
 import type { WatchHistoryItem } from '@/lib/watch-history'
+import { useWatchlist } from '@/lib/watchlist'
 
 interface HomepageData {
   watchHistory: WatchHistoryItem[]
@@ -46,9 +47,12 @@ interface HomepageDataProviderProps {
  */
 export function HomepageDataProvider({ children, movieIds, cards, enabled = true }: HomepageDataProviderProps) {
   const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([])
-  const [watchlistIds, setWatchlistIds] = useState<string[]>([])
   const [ready, setReady] = useState(!enabled)
   const cardsById = useMemo(() => new Map(cards.map((m) => [m.id, m] as const)), [cards])
+
+  /* Shared watchlist store — ONE fetch serves this provider and every
+     per-card save toggle on the page (previously one request per card). */
+  const { ids: watchlistIds, ready: watchlistReady } = useWatchlist()
 
   // Fetch watch history once (skipped entirely for signed-out visitors)
   useEffect(() => {
@@ -84,34 +88,15 @@ export function HomepageDataProvider({ children, movieIds, cards, enabled = true
     }
   }, [enabled])
 
-  // Fetch watchlist once (skipped entirely for signed-out visitors)
-  useEffect(() => {
-    if (!enabled) return
-    let cancelled = false
-    fetch('/api/watchlist')
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return
-        if (data.ok && data.data?.items) {
-          setWatchlistIds(data.data.items.map((i: any) => i.movieId))
-        }
-      })
-      .catch(() => {})
-
-    return () => {
-      cancelled = true
-    }
-  }, [enabled])
-
   // Mark ready when both fetches complete (already ready when disabled)
   useEffect(() => {
     if (!enabled) return
-    if (watchHistory.length >= 0 && watchlistIds.length >= 0) {
+    if (watchHistory.length >= 0 && watchlistReady) {
       // Use a small delay to batch both fetches
       const timer = setTimeout(() => setReady(true), 100)
       return () => clearTimeout(timer)
     }
-  }, [watchHistory, watchlistIds, enabled])
+  }, [watchHistory, watchlistReady, enabled])
 
   // Client-side removal (no API endpoint for deleting history)
   const removeFromHistory = useMemo(
