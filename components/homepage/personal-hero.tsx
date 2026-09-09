@@ -5,7 +5,7 @@ import { ArrowRight, LayoutDashboard, Play, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useHomepageData } from '@/components/homepage/homepage-data-context'
 import { resumeCandidates } from '@/lib/watch-history'
-import type { Movie } from '@/lib/types'
+import type { Movie, MovieCardDto } from '@/lib/types'
 
 /**
  * Signed-in welcome hero — replaces the marketing hero for members.
@@ -15,14 +15,14 @@ import type { Movie } from '@/lib/types'
  * - Returning viewer: greeting + Resume pill for the latest unfinished film.
  * - Fresh account: onboarding prompt pointing at Curator's Picks.
  */
-export function PersonalHero({ displayName, catalog }: { displayName: string; catalog: Movie[] }) {
+export function PersonalHero({ displayName, cards }: { displayName: string; cards: MovieCardDto[] }) {
   const { watchHistory, ready } = useHomepageData()
-  const movieById = new Map(catalog.map((m) => [m.id, m] as const))
+  const movieById = new Map(cards.map((m) => [m.id, m] as const))
 
   const latest = resumeCandidates(watchHistory, { limit: 1 })
     .map((entry) => ({ entry, movie: movieById.get(entry.movieId) }))
-    .find((item): item is { entry: (typeof watchHistory)[number]; movie: Movie } =>
-      Boolean(item.movie?.isActive),
+    .find((item): item is { entry: (typeof watchHistory)[number]; movie: MovieCardDto } =>
+      Boolean(item.movie),
     )
 
   const firstName = displayName.split(/\s+/)[0] || displayName

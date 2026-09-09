@@ -3,7 +3,8 @@
 import { useMemo } from 'react'
 import { MovieCarousel } from '@/components/movie-carousel'
 import { useHomepageData } from '@/components/homepage/homepage-data-context'
-import type { Movie } from '@/lib/types'
+import type { MovieCardDto } from '@/lib/types'
+import { sortLatest } from '@/lib/types'
 
 const CATEGORY_LABEL: Record<string, string> = {
   feature: 'feature films',
@@ -19,11 +20,11 @@ const CATEGORY_LABEL: Record<string, string> = {
  * + watchlist: +2 for the viewer's top category, +1 for their top country.
  * Falls back to newest unwatched films when there isn't enough signal.
  */
-export function RecommendedRow({ catalog }: { catalog: Movie[] }) {
+export function RecommendedRow({ cards }: { cards: MovieCardDto[] }) {
   const { watchHistory, watchlistIds, ready } = useHomepageData()
 
   const movies = useMemo(() => {
-    const movieById = new Map(catalog.map((m) => [m.id, m] as const))
+    const movieById = new Map(cards.map((m) => [m.id, m] as const))
     const seen = new Set<string>([
       ...watchHistory.map((e) => e.movieId),
       ...watchlistIds,
@@ -41,15 +42,12 @@ export function RecommendedRow({ catalog }: { catalog: Movie[] }) {
     const topCategory = [...categoryCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
     const topCountry = [...countryCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
 
-    const candidates = catalog.filter((m) => m.isActive && !seen.has(m.id))
+    const candidates = cards.filter((m) => !seen.has(m.id))
     if (candidates.length === 0) return { list: [], topCategory, topCountry }
 
     if (!topCategory && !topCountry) {
       // No signal yet (fresh account) — newest unwatched films.
-      const list = [...candidates]
-        .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
-        .slice(0, 10)
-      return { list, topCategory, topCountry }
+      return { list: sortLatest(candidates, 10), topCategory, topCountry }
     }
 
     const scored = candidates.map((m) => ({
@@ -60,7 +58,7 @@ export function RecommendedRow({ catalog }: { catalog: Movie[] }) {
       (a, b) => b.score - a.score || +new Date(b.m.createdAt) - +new Date(a.m.createdAt),
     )
     return { list: scored.slice(0, 10).map((s) => s.m), topCategory, topCountry }
-  }, [catalog, watchHistory, watchlistIds])
+  }, [cards, watchHistory, watchlistIds])
 
   if (!ready || movies.list.length < 2) return null
 

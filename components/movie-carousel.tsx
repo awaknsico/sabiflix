@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MovieCard } from '@/components/movie-card'
-import type { Movie } from '@/lib/types'
+import type { MovieCardDto } from '@/lib/types'
 
 export function MovieCarousel({
   title,
@@ -16,7 +16,7 @@ export function MovieCarousel({
 }: {
   title: string
   description?: string
-  movies: Movie[]
+  movies: MovieCardDto[]
   /** Section leader — renders the gold "No. 01" kicker (audit step 6). */
   index?: number
   /** Optional extra header control (e.g. a segmentation toggle), shown on the right. */

@@ -3,9 +3,9 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { X } from 'lucide-react'
-import type { Movie } from '@/lib/types'
 import { resumeCandidates } from '@/lib/watch-history'
 import type { WatchHistoryItem } from '@/lib/watch-history'
+import type { MovieCardDto } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { useHomepageData } from '@/components/homepage/homepage-data-context'
 
@@ -23,14 +23,14 @@ function formatDuration(totalSeconds: number) {
  *
  * Uses shared homepage data to avoid duplicate API calls.
  */
-export function ContinueWatching({ catalog }: { catalog: Movie[] }) {
+export function ContinueWatching({ cards }: { cards: MovieCardDto[] }) {
   const { watchHistory, ready, removeFromHistory } = useHomepageData()
-  const movieById = new Map(catalog.map((m) => [m.id, m] as const))
+  const movieById = new Map(cards.map((m) => [m.id, m] as const))
 
   const items = resumeCandidates(watchHistory, { limit: 5 })
     .map((entry) => ({ entry, movie: movieById.get(entry.movieId) }))
-    .filter((item): item is { entry: WatchHistoryItem; movie: Movie } =>
-      Boolean(item.movie && item.movie.isActive),
+    .filter((item): item is { entry: WatchHistoryItem; movie: MovieCardDto } =>
+      Boolean(item.movie),
     )
 
   if (!ready || items.length === 0) return null

@@ -4,9 +4,9 @@ import { BadgeCheck, Clapperboard, Play, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { WatchlistToggle } from '@/components/watchlist-toggle'
 import { cn } from '@/lib/utils'
-import type { Movie } from '@/lib/types'
+import type { MovieCardDto } from '@/lib/types'
 
-const categoryLabel: Record<Movie['category'], string> = {
+const categoryLabel: Record<MovieCardDto['category'], string> = {
   feature: 'Feature',
   short: 'Short',
   documentary: 'Documentary',
@@ -16,7 +16,7 @@ const categoryLabel: Record<Movie['category'], string> = {
  * Curation badge — communicates *why* a film is on SabiFlix.
  * Each variant has a distinct color + icon for instant recognition at any card size.
  */
-function CurationBadge({ type }: { type: NonNullable<Movie['curationType']> }) {
+function CurationBadge({ type }: { type: NonNullable<MovieCardDto['curationType']> }) {
   if (type === 'admin') {
     return (
       <span className="inline-flex shrink-0 items-center gap-0.5 text-primary" title="Curated by a SabiFlix moderator">
@@ -43,7 +43,7 @@ export function MovieCard({
   className,
   priority = false,
 }: {
-  movie: Movie
+  movie: MovieCardDto
   className?: string
   priority?: boolean
 }) {

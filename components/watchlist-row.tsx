@@ -1,7 +1,7 @@
 'use client'
 
 import { MovieCard } from '@/components/movie-card'
-import type { Movie } from '@/lib/types'
+import type { MovieCardDto } from '@/lib/types'
 import { useHomepageData } from '@/components/homepage/homepage-data-context'
 
 /**
@@ -10,13 +10,13 @@ import { useHomepageData } from '@/components/homepage/homepage-data-context'
  *
  * Uses shared homepage data to avoid duplicate API calls.
  */
-export function WatchlistRow({ catalog }: { catalog: Movie[] }) {
+export function WatchlistRow({ cards }: { cards: MovieCardDto[] }) {
   const { watchlistIds, ready } = useHomepageData()
-  const movieById = new Map(catalog.map((m) => [m.id, m] as const))
+  const movieById = new Map(cards.map((m) => [m.id, m] as const))
 
   const movies = watchlistIds
     .map((id) => movieById.get(id))
-    .filter((m): m is Movie => Boolean(m && m.isActive))
+    .filter((m): m is MovieCardDto => Boolean(m))
     .slice(0, 5)
 
   if (!ready || movies.length === 0) return null

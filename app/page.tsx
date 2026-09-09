@@ -15,6 +15,7 @@ import { NewSinceVisit } from '@/components/new-since-visit'
 import { MostWatchedRow } from '@/components/most-watched-row'
 import { getFeaturedPlaylists, getPublishedEntries } from '@/lib/server-catalog'
 import { getCurrentUser } from '@/lib/api/auth'
+import { toCardDto } from '@/lib/types'
 
 /** The seeded "Curator's Picks" playlist id (see d1/seed.sql). */
 const CURATORS_PICKS_ID = '0190c0de-3000-7000-8000-000000000001'
@@ -36,6 +37,9 @@ export default async function HomePage() {
     .filter((m) => m.isActive)
     .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
     .slice(0, 10)
+  // Lean card projections — the homepage passes these (not full `Movie`) to
+  // every client section, which is what shrinks the RSC flight payload.
+  const cards = catalog.map(toCardDto)
 
   /* Hero reel — the Curator's Picks playlist doubles as the featured backdrop. */
   const heroSource = (featuredPlaylists.find((p) => p.id === CURATORS_PICKS_ID) ?? featuredPlaylists[0])
@@ -60,16 +64,16 @@ export default async function HomePage() {
           {/* Shared data provider — fetches watch history & watchlist once for all rows */}
           <HomepageDataProvider movieIds={movieIds}>
             {/* Welcome-back hero with one-tap resume */}
-            <PersonalHero displayName={member.displayName || 'Member'} catalog={catalog} />
+            <PersonalHero displayName={member.displayName || 'Member'} cards={cards} />
 
             {/* Continue watching — pick up where you left off */}
-            <ContinueWatching catalog={catalog} />
+            <ContinueWatching cards={cards} />
 
             {/* Your watchlist — renders once the viewer has saved something */}
-            <WatchlistRow catalog={catalog} />
+            <WatchlistRow cards={cards} />
 
             {/* Because you watched … — taste-based recommendations */}
-            <RecommendedRow catalog={catalog} />
+            <RecommendedRow cards={cards} />
           </HomepageDataProvider>
 
           {/* Featured Playlists */}
@@ -80,13 +84,13 @@ export default async function HomePage() {
                 index={i + 1}
                 title={playlist.name}
                 description={playlist.description ?? undefined}
-                movies={playlist.movies}
+                movies={playlist.movies.map((m) => toCardDto(m))}
               />
             ))}
           </div>
 
           {/* Most watched — community pulse, computed from watch history */}
-          <MostWatchedRow catalog={catalog} />
+          <MostWatchedRow cards={cards} />
 
           {/* Latest additions */}
           <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -101,7 +105,7 @@ export default async function HomePage() {
                 <p className="text-sm text-muted-foreground">
                   Freshly curated and added to the library.
                 </p>
-                <NewSinceVisit catalog={catalog} />
+                <NewSinceVisit cards={cards} />
               </div>
               <Button
                 variant="ghost"
@@ -173,13 +177,13 @@ export default async function HomePage() {
             so the provider stays disabled and children render empty states. */}
         <HomepageDataProvider movieIds={movieIds} enabled={false}>
           {/* Continue watching — pick up where you left off */}
-          <ContinueWatching catalog={catalog} />
+          <ContinueWatching cards={cards} />
 
           {/* Your watchlist — renders once the viewer has saved something */}
-          <WatchlistRow catalog={catalog} />
+          <WatchlistRow cards={cards} />
         </HomepageDataProvider>
 
-        {/* Featured Playlists */}
+        {/* Featured Playlists — lean card DTOs, not full Movie objects */}
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-12">
           {featuredPlaylists.map((playlist, i) => (
             <MovieCarousel
@@ -187,13 +191,13 @@ export default async function HomePage() {
               index={i + 1}
               title={playlist.name}
               description={playlist.description ?? undefined}
-              movies={playlist.movies}
+              movies={playlist.movies.map((m) => toCardDto(m))}
             />
           ))}
         </div>
 
         {/* Most watched — community pulse, computed from watch history */}
-        <MostWatchedRow catalog={catalog} />
+        <MostWatchedRow cards={cards} />
 
         {/* Latest additions */}
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -208,7 +212,7 @@ export default async function HomePage() {
               <p className="text-sm text-muted-foreground">
                 Freshly curated and added to the library.
               </p>
-              <NewSinceVisit catalog={catalog} />
+              <NewSinceVisit cards={cards} />
             </div>
             <Button
               variant="ghost"

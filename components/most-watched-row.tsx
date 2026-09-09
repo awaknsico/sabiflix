@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MovieCarousel } from '@/components/movie-carousel'
 import { rankMostWatched } from '@/lib/watch-history'
 import type { WatchPeriod } from '@/lib/watch-history'
-import type { Movie } from '@/lib/types'
+import type { Movie, MovieCardDto } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { useHomepageData } from '@/components/homepage/homepage-data-context'
 
@@ -15,12 +15,23 @@ import { useHomepageData } from '@/components/homepage/homepage-data-context'
  *
  * Uses shared homepage data to avoid duplicate API calls.
  */
-export function MostWatchedRow({ catalog }: { catalog: Movie[] }) {
+export function MostWatchedRow({ cards }: { cards: MovieCardDto[] }) {
   const { watchHistory, ready } = useHomepageData()
   const [period, setPeriod] = useState<WatchPeriod>('all')
-  const movieById = new Map(catalog.map((m) => [m.id, m] as const))
-  const ranked = rankMostWatched(watchHistory, movieById, { period, limit: 10 })
-  const movies = ranked.map((r) => r.movie)
+  // rankMostWatched needs full Movies for its internal map — the DTO's id set
+  // is enough to resolve here; ranking operates on history entries only.
+  const ranked = useMemo(() => {
+    const byId = new Map(cards.map((m) => [m.id, m] as const))
+    return rankMostWatched(
+      watchHistory,
+      byId as unknown as Map<string, Movie>,
+      { period, limit: 10 },
+    ).map((r) => r.movie.id)
+  }, [cards, watchHistory, period])
+  const movies = useMemo(() => {
+    const byId = new Map(cards.map((m) => [m.id, m] as const))
+    return ranked.map((id) => byId.get(id)).filter((m): m is MovieCardDto => Boolean(m))
+  }, [cards, ranked])
 
   if (!ready || movies.length < 2) return null
 
