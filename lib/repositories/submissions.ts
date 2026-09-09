@@ -6,15 +6,22 @@ import { getDB } from '@/lib/db/client'
 import { filmSubmissions, users, type FilmSubmission } from '@/lib/db/schema'
 import { eq, and, desc, sql, count } from 'drizzle-orm'
 import { nowEpoch } from '@/lib/time'
+import type { Paged } from '@/lib/api/pagination'
 
 function db() { return getDB() }
 
 export type FilmSubmissionRow = FilmSubmission & { userDisplayName: string | null }
 
+/** Paged window over submissions (newest first) with a total count. */
 export async function listSubmissions(
-  userId: string, includeAll: boolean = false,
-): Promise<FilmSubmissionRow[]> {
+  userId: string,
+  includeAll: boolean = false,
+  params: { page?: number; perPage?: number } = {},
+): Promise<Paged<FilmSubmissionRow>> {
   const d = db()
+  const page = params.page ?? 1
+  const perPage = params.perPage ?? 20
+  const off = (page - 1) * perPage
   const where = includeAll ? undefined : eq(filmSubmissions.userId, userId)
   const rows = await d
     .select({
@@ -37,8 +44,16 @@ export async function listSubmissions(
     .leftJoin(users, eq(users.id, filmSubmissions.userId))
     .where(where)
     .orderBy(desc(filmSubmissions.createdAt))
+    .limit(perPage)
+    .offset(off)
     .all()
-  return rows as unknown as FilmSubmissionRow[]
+  const countRows = await d.select({ value: count() }).from(filmSubmissions).where(where).all()
+  return {
+    items: rows as unknown as FilmSubmissionRow[],
+    total: Number(countRows[0]?.value ?? 0),
+    page,
+    perPage,
+  }
 }
 
 export async function getSubmission(id: string): Promise<FilmSubmission | null> {

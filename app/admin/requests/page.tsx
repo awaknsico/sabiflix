@@ -5,6 +5,7 @@ import { Check, Inbox, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { TablePagination } from '@/components/ui/pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import {
@@ -47,6 +48,9 @@ const statusVariant: Record<AdminRequest['status'], 'default' | 'secondary' | 'o
   closed: 'outline',
 }
 
+/** Server-paginated queue window. */
+const PER_PAGE = 20
+
 export default function AdminRequestsPage() {
   const [reqs, setReqs] = useState<AdminRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,12 +58,15 @@ export default function AdminRequestsPage() {
   const [pickingId, setPickingId] = useState<string | null>(null)
   const [movieChoice, setMovieChoice] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/requests')
+      const res = await fetch(`/api/requests?page=${page}&perPage=${PER_PAGE}`)
       const data = await res.json()
       setReqs(Array.isArray(data?.data?.requests) ? data.data.requests : [])
+      setTotal(Number(data?.meta?.total ?? 0))
     } catch {
       toast.error('Could not load requests', {
         description: 'Please refresh the page to try again.',
@@ -67,18 +74,21 @@ export default function AdminRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page])
 
   useEffect(() => {
     load()
-    // Catalog options for the "link to a movie" picker (public endpoint).
+  }, [load])
+
+  // Catalog options for the "link to a movie" picker (public endpoint).
+  useEffect(() => {
     fetch('/api/movies?perPage=100&sort=title')
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d?.data?.movies)) setMovieOptions(d.data.movies)
       })
       .catch(() => {})
-  }, [load])
+  }, [])
 
   /** Optimistically update one request, then persist via the admin PATCH. */
   function patchRequest(id: string, patch: { status: 'found' | 'closed'; fulfilledByMovieId?: string }, successMessage: string) {
@@ -206,6 +216,14 @@ export default function AdminRequestsPage() {
             ))}
           </div>
         )}
+        <TablePagination
+          className="mt-6"
+          page={page}
+          perPage={PER_PAGE}
+          total={total}
+          onPageChange={setPage}
+          itemName="requests"
+        />
       </div>
     </div>
   )

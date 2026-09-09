@@ -26,6 +26,9 @@ import type { Movie, MovieCategory } from '@/lib/types'
 
 const ALL = 'all'
 
+/** Load-more window for the results grid (4 rows on the 5-col desktop grid). */
+const PAGE_SIZE = 20
+
 /* Filter option lists. These are editorial constants for the browse UI, not
    derived from the DB — the catalog itself (movies, search, cast) is served
    by the D1-backed `publishedMovies` prop. */
@@ -88,6 +91,18 @@ export function CatalogBrowser({
         return inTitle || inCast
       })
   }, [query, category, country, language, publishedMovies])
+
+  /* Load-more window: render PAGE_SIZE titles at a time instead of the whole
+     grid — keeps the page light without the friction of numbered pages.
+     Reset when the filter set changes so a refined search starts at the top. */
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [query, category, country, language])
+  const visibleResults = useMemo(
+    () => results.slice(0, visibleCount),
+    [results, visibleCount],
+  )
 
   const activeFilters = [
     category !== ALL,
@@ -185,7 +200,9 @@ export function CatalogBrowser({
       {/* Result count */}
       {!loading ? (
         <p className="text-sm text-muted-foreground" aria-live="polite">
-          {results.length} {results.length === 1 ? 'film' : 'films'}
+          {visibleResults.length < results.length
+            ? `Showing ${visibleResults.length} of ${results.length} films`
+            : `${results.length} ${results.length === 1 ? 'film' : 'films'}`}
           {query.trim() ? (
             <>
               {' '}for <span className="text-foreground">&ldquo;{query.trim()}&rdquo;</span>
@@ -224,11 +241,24 @@ export function CatalogBrowser({
         </Empty>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {results.map((movie, i) => (
+          {visibleResults.map((movie, i) => (
             <MovieCard key={movie.id} movie={movie} priority={i < 5} />
           ))}
         </div>
       )}
+
+      {/* Load more — appends the next window instead of numbered-page jumps,
+          so browsing keeps its rhythm (no scroll resets, filters stay live). */}
+      {!loading && visibleResults.length < results.length ? (
+        <div className="mt-8 flex justify-center">
+          <Button variant="outline" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
+            Load more films
+            <span className="text-muted-foreground">
+              ({results.length - visibleResults.length} remaining)
+            </span>
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }

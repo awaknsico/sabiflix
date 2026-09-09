@@ -5,23 +5,28 @@
 import { handler, ok, Errors } from '@/lib/api/envelope'
 import { requireUser } from '@/lib/api/auth'
 import { requestCreateSchema } from '@/lib/validations'
+import { parsePaginationParams, paginationMeta } from '@/lib/api/pagination'
 import { createRequest, listRequests } from '@/lib/repositories/requests'
 import { epochToIso } from '@/lib/time'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export const GET = handler(async () => {
+export const GET = handler(async (request: Request) => {
   const user = await requireUser()
-  const rows = await listRequests(user.id, user.role === 'admin')
-  return ok({
-    requests: rows.map((r) => ({
-      id: r.id, requestedTitle: r.requestedTitle, description: r.description,
-      status: r.status, userDisplayName: r.userDisplayName,
-      fulfilledByMovieId: r.fulfilledByMovieId,
-      requestedAt: epochToIso(r.createdAt),
-    })),
-  })
+  const { page, perPage } = parsePaginationParams(new URL(request.url).searchParams)
+  const { items, total } = await listRequests(user.id, user.role === 'admin', { page, perPage })
+  return ok(
+    {
+      requests: items.map((r) => ({
+        id: r.id, requestedTitle: r.requestedTitle, description: r.description,
+        status: r.status, userDisplayName: r.userDisplayName,
+        fulfilledByMovieId: r.fulfilledByMovieId,
+        requestedAt: epochToIso(r.createdAt),
+      })),
+    },
+    paginationMeta(page, perPage, total),
+  )
 })
 
 export const POST = handler(async (request: Request) => {

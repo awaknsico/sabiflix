@@ -8,6 +8,7 @@ import { reviews, users, movies } from '@/lib/db/schema'
 import { eq, and, desc, count, avg, asc } from 'drizzle-orm'
 import { uuid_v7 } from '@/lib/ids'
 import { nowEpoch } from '@/lib/time'
+import type { Paged } from '@/lib/api/pagination'
 
 function db() { return getDB() }
 
@@ -20,7 +21,18 @@ export interface ReviewListItem {
   avatarUrl: string | null
 }
 
-export async function listReviews(movieId: string): Promise<ReviewListItem[]> {
+/**
+ * Paged window over a movie's visible reviews (newest first), 10 per page —
+ * review threads are read sequentially, so the page size stays small.
+ */
+export async function listReviews(
+  movieId: string,
+  params: { page?: number; perPage?: number } = {},
+): Promise<Paged<ReviewListItem>> {
+  const page = params.page ?? 1
+  const perPage = params.perPage ?? 10
+  const off = (page - 1) * perPage
+  const where = and(eq(reviews.movieId, movieId), eq(reviews.status, 'visible'))
   const rows = await db()
     .select({
       id: reviews.id, rating: reviews.rating, body: reviews.body, createdAt: reviews.createdAt,
@@ -28,10 +40,18 @@ export async function listReviews(movieId: string): Promise<ReviewListItem[]> {
     })
     .from(reviews)
     .innerJoin(users, eq(users.id, reviews.userId))
-    .where(and(eq(reviews.movieId, movieId), eq(reviews.status, 'visible')))
+    .where(where)
     .orderBy(desc(reviews.createdAt))
+    .limit(perPage)
+    .offset(off)
     .all()
-  return rows as unknown as ReviewListItem[]
+  const countRows = await db().select({ value: count() }).from(reviews).where(where).all()
+  return {
+    items: rows as unknown as ReviewListItem[],
+    total: Number(countRows[0]?.value ?? 0),
+    page,
+    perPage,
+  }
 }
 
 export async function createReview(data: {

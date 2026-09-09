@@ -5,6 +5,7 @@ import { Check, Loader2, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } fr
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { TablePagination } from '@/components/ui/pagination'
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,9 @@ function emptyForm() {
 
 const isPublished = (m: Movie) => m.id.startsWith('mov-pub-')
 
+/** Server-paginated table window — matches the `perPage` cap in the API. */
+const PAGE_SIZE = 20
+
 export default function AdminMoviesPage() {
   const [list, setList] = useState<Movie[]>([])
   const [sourcesById, setSourcesById] = useState<Record<string, { videoId: string; channel: string }>>({})
@@ -70,18 +74,25 @@ export default function AdminMoviesPage() {
   const [languageFilter, setLanguageFilter] = useState<string>('')
   const [yearFilter, setYearFilter] = useState<string>('')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
 
   const activeFilterCount = [categoryFilter, countryFilter, languageFilter, yearFilter].filter(Boolean).length
 
   const buildQuery = useCallback(() => {
-    const params = new URLSearchParams({ perPage: '1000', sort: 'title', sortDir: 'asc' })
+    const params = new URLSearchParams({
+      perPage: String(PAGE_SIZE),
+      page: String(page),
+      sort: 'title',
+      sortDir: 'asc',
+    })
     if (search.trim()) params.set('q', search.trim())
     if (categoryFilter) params.set('category', categoryFilter)
     if (countryFilter) params.set('country', countryFilter)
     if (languageFilter) params.set('language', languageFilter)
     if (yearFilter.trim()) params.set('year', yearFilter.trim())
     return params.toString()
-  }, [search, categoryFilter, countryFilter, languageFilter, yearFilter])
+  }, [page, search, categoryFilter, countryFilter, languageFilter, yearFilter])
 
   const refreshCatalog = useCallback(async () => {
     try {
@@ -97,9 +108,11 @@ export default function AdminMoviesPage() {
             .map((movie) => [movie.id, { videoId: movie.youtubeVideoId!, channel: '' }]),
         ),
       )
+      setTotal(Number(data?.meta?.total ?? movies.length))
     } catch {
       setList([])
       setSourcesById({})
+      setTotal(0)
     }
   }, [buildQuery])
 
@@ -107,6 +120,12 @@ export default function AdminMoviesPage() {
   useEffect(() => {
     refreshCatalog()
   }, [refreshCatalog])
+
+  /* Any search/filter change sends the curator back to the first page.
+     setPage(1) is a no-op bailout when already there — no extra fetch. */
+  useEffect(() => {
+    setPage(1)
+  }, [search, categoryFilter, countryFilter, languageFilter, yearFilter])
 
   /* When the URL resolves, prefill title + poster without clobbering
      anything the curator typed or picked manually. */
@@ -151,6 +170,10 @@ export default function AdminMoviesPage() {
         const data = await res.json().catch(() => null)
         if (!res.ok || data?.ok === false) throw new Error(data?.error ?? 'Delete failed')
         setList((prev) => prev.filter((m) => m.id !== movie.id))
+        setTotal((t) => Math.max(0, t - 1))
+        /* Deleted the last row of a later page → step back so the table
+           isn't left showing an empty page. */
+        if (list.length === 1 && page > 1) setPage((p) => p - 1)
         toast.success('Movie deleted', { description: `“${movie.title}” was removed from the catalog.` })
       } catch (err) {
         toast.error('Delete failed', { description: err instanceof Error ? err.message : 'Please try again.' })
@@ -209,7 +232,7 @@ export default function AdminMoviesPage() {
         <div className="flex flex-col gap-1">
           <h1 className="font-serif text-3xl font-bold tracking-tight">Movies</h1>
           <p className="text-muted-foreground">
-            Manage the catalog — {list.length} title{list.length === 1 ? '' : 's'} in total.
+            Manage the catalog — {total} title{total === 1 ? '' : 's'} in total.
           </p>
         </div>
         <Button onClick={openAdd}>
@@ -405,6 +428,14 @@ export default function AdminMoviesPage() {
             </Table>
           </div>
         )}
+        <TablePagination
+          className="mt-4"
+          page={page}
+          perPage={PAGE_SIZE}
+          total={total}
+          onPageChange={setPage}
+          itemName="titles"
+        />
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

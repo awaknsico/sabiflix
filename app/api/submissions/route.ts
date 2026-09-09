@@ -5,25 +5,30 @@
 import { handler, ok, Errors } from '@/lib/api/envelope'
 import { requireUser } from '@/lib/api/auth'
 import { submissionCreateSchema } from '@/lib/validations'
+import { parsePaginationParams, paginationMeta } from '@/lib/api/pagination'
 import { createSubmission, listSubmissions } from '@/lib/repositories/submissions'
 import { epochToIso } from '@/lib/time'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export const GET = handler(async () => {
+export const GET = handler(async (request: Request) => {
   const user = await requireUser()
-  const rows = await listSubmissions(user.id, user.role === 'admin')
-  return ok({
-    submissions: rows.map((r) => ({
-      id: r.id, title: r.title, youtubeUrl: r.youtubeUrl,
-      youtubeVideoId: r.youtubeVideoId, description: r.description,
-      status: r.status, adminNotes: r.adminNotes,
-      userDisplayName: r.userDisplayName,
-      publishedMovieId: r.publishedMovieId,
-      submittedAt: epochToIso(r.createdAt),
-    })),
-  })
+  const { page, perPage } = parsePaginationParams(new URL(request.url).searchParams)
+  const { items, total } = await listSubmissions(user.id, user.role === 'admin', { page, perPage })
+  return ok(
+    {
+      submissions: items.map((r) => ({
+        id: r.id, title: r.title, youtubeUrl: r.youtubeUrl,
+        youtubeVideoId: r.youtubeVideoId, description: r.description,
+        status: r.status, adminNotes: r.adminNotes,
+        userDisplayName: r.userDisplayName,
+        publishedMovieId: r.publishedMovieId,
+        submittedAt: epochToIso(r.createdAt),
+      })),
+    },
+    paginationMeta(page, perPage, total),
+  )
 })
 
 export const POST = handler(async (request: Request) => {

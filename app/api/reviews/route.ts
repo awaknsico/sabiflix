@@ -9,6 +9,7 @@ import { handler, ok, Errors } from '@/lib/api/envelope'
 import { requireUser } from '@/lib/api/auth'
 import { checkRateLimit } from '@/lib/api/rate-limit'
 import { reviewCreateSchema } from '@/lib/validations'
+import { parsePaginationParams, paginationMeta } from '@/lib/api/pagination'
 import { listReviews, createReview } from '@/lib/repositories/reviews'
 import { epochToIso } from '@/lib/time'
 
@@ -24,15 +25,19 @@ export const GET = handler(async (request: Request) => {
   const movieId = searchParams.get('movieId')
   if (!movieId) throw Errors.validation('movieId is required')
 
-  const reviews = await listReviews(movieId)
-  return ok({
-    reviews: reviews.map((r) => ({
-      id: r.id,
-      rating: r.rating,
-      body: r.body,
-      createdAt: epochToIso(r.createdAt),
-    })),
-  })
+  const { page, perPage } = parsePaginationParams(searchParams, 10)
+  const { items, total } = await listReviews(movieId, { page, perPage })
+  return ok(
+    {
+      reviews: items.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        body: r.body,
+        createdAt: epochToIso(r.createdAt),
+      })),
+    },
+    paginationMeta(page, perPage, total),
+  )
 })
 
 export const POST = handler(async (request: Request) => {

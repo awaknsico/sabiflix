@@ -74,8 +74,10 @@ export function DashboardView() {
   useEffect(() => {
     Promise.all([
       fetch('/api/catalog').then((r) => r.json().catch(() => null)),
-      fetch('/api/requests').then((r) => r.json().catch(() => null)),
-      fetch('/api/submissions').then((r) => r.json().catch(() => null)),
+      /* perPage=50 preserves the "show all my rows" behavior now that
+         /api/requests and /api/submissions are paginated (default 20). */
+      fetch('/api/requests?perPage=50').then((r) => r.json().catch(() => null)),
+      fetch('/api/submissions?perPage=50').then((r) => r.json().catch(() => null)),
       fetch('/api/me').then((r) => r.json().catch(() => null)),
     ])
       .then(([cat, req, sub, me]) => {

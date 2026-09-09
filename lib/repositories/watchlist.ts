@@ -4,8 +4,9 @@
 
 import { getDB } from '@/lib/db/client'
 import { watchlist, movies } from '@/lib/db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, count } from 'drizzle-orm'
 import { nowEpoch } from '@/lib/time'
+import type { Paged } from '@/lib/api/pagination'
 
 function db() { return getDB() }
 
@@ -30,6 +31,41 @@ export async function getWatchlist(userId: string): Promise<WatchlistItem[]> {
     .orderBy(desc(watchlist.createdAt))
     .all()
   return rows as unknown as WatchlistItem[]
+}
+
+/**
+ * Paged window over the same list, for surfaces that render the watchlist in
+ * full (the default `/api/watchlist` response stays complete because the
+ * client-side toggle state needs every id).
+ */
+export async function getWatchlistPage(
+  userId: string,
+  params: { page?: number; perPage?: number },
+): Promise<Paged<WatchlistItem>> {
+  const d = db()
+  const page = params.page ?? 1
+  const perPage = params.perPage ?? 20
+  const off = (page - 1) * perPage
+  const where = eq(watchlist.userId, userId)
+  const rows = await d
+    .select({
+      movieId: watchlist.movieId, title: movies.title, posterUrl: movies.posterUrl,
+      year: movies.year, category: movies.category, addedAt: watchlist.createdAt,
+    })
+    .from(watchlist)
+    .innerJoin(movies, eq(movies.id, watchlist.movieId))
+    .where(where)
+    .orderBy(desc(watchlist.createdAt))
+    .limit(perPage)
+    .offset(off)
+    .all()
+  const countRows = await d.select({ value: count() }).from(watchlist).where(where).all()
+  return {
+    items: rows as unknown as WatchlistItem[],
+    total: Number(countRows[0]?.value ?? 0),
+    page,
+    perPage,
+  }
 }
 
 export async function toggleWatchlist(userId: string, movieId: string): Promise<boolean> {

@@ -6,6 +6,7 @@ import { Check, ExternalLink, ListPlus, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { TablePagination } from '@/components/ui/pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
@@ -49,6 +50,9 @@ const statusVariant: Record<AdminSubmission['status'], 'default' | 'secondary' |
   rejected: 'outline',
 }
 
+/** Server-paginated queue window. */
+const PER_PAGE = 20
+
 export default function AdminSubmissionsPage() {
   const [subs, setSubs] = useState<AdminSubmission[]>([])
   const [loading, setLoading] = useState(true)
@@ -56,12 +60,15 @@ export default function AdminSubmissionsPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
   const [importing, setImporting] = useState(false)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/submissions')
+      const res = await fetch(`/api/submissions?page=${page}&perPage=${PER_PAGE}`)
       const data = await res.json()
       setSubs(Array.isArray(data?.data?.submissions) ? data.data.submissions : [])
+      setTotal(Number(data?.meta?.total ?? 0))
     } catch {
       toast.error('Could not load submissions', {
         description: 'Please refresh the page to try again.',
@@ -69,7 +76,7 @@ export default function AdminSubmissionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page])
 
   useEffect(() => {
     load()
@@ -319,6 +326,14 @@ export default function AdminSubmissionsPage() {
             ))}
           </div>
         )}
+        <TablePagination
+          className="mt-6"
+          page={page}
+          perPage={PER_PAGE}
+          total={total}
+          onPageChange={setPage}
+          itemName="submissions"
+        />
       </div>
 
       <Dialog open={importOpen} onOpenChange={setImportOpen}>

@@ -6,6 +6,7 @@ import { getDB } from '@/lib/db/client'
 import { watchHistory, movies } from '@/lib/db/schema'
 import { eq, and, desc, count } from 'drizzle-orm'
 import { nowEpoch } from '@/lib/time'
+import type { Paged } from '@/lib/api/pagination'
 
 function db() { return getDB() }
 
@@ -88,6 +89,44 @@ export async function getResumeList(userId: string, limit = 50): Promise<History
 
 export async function getHistory(userId: string, limit = 50): Promise<HistoryEntry[]> {
   return getResumeList(userId, limit)
+}
+
+/**
+ * Paged window over the full watch history, for surfaces that page through
+ * it (the default `/api/watch-history` response stays the 50-entry resume
+ * list that client stores expect).
+ */
+export async function getHistoryPage(
+  userId: string,
+  params: { page?: number; perPage?: number },
+): Promise<Paged<HistoryEntry>> {
+  const d = db()
+  const page = params.page ?? 1
+  const perPage = params.perPage ?? 20
+  const off = (page - 1) * perPage
+  const where = eq(watchHistory.userId, userId)
+  const rows = await d
+    .select({
+      id: watchHistory.id, movieId: watchHistory.movieId, title: movies.title,
+      posterUrl: movies.posterUrl, year: movies.year,
+      progressSeconds: watchHistory.progressSeconds,
+      durationSeconds: watchHistory.durationSeconds,
+      updatedAt: watchHistory.updatedAt,
+    })
+    .from(watchHistory)
+    .innerJoin(movies, eq(movies.id, watchHistory.movieId))
+    .where(where)
+    .orderBy(desc(watchHistory.updatedAt))
+    .limit(perPage)
+    .offset(off)
+    .all()
+  const countRows = await d.select({ value: count() }).from(watchHistory).where(where).all()
+  return {
+    items: rows as unknown as HistoryEntry[],
+    total: Number(countRows[0]?.value ?? 0),
+    page,
+    perPage,
+  }
 }
 
 export async function getContinueWatching(userId: string, limit = 10): Promise<HistoryEntry[]> {

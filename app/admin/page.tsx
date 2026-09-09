@@ -45,12 +45,14 @@ export default async function AdminDashboardPage() {
 
   const [stats, submissions, requests] = await Promise.all([
     getAdminStats(),
-    listSubmissions(admin.id, true),
-    listRequests(admin.id, true),
+    /* Bounded preview windows — the exact counts come from getAdminStats(),
+       these lists only feed the "pending" teasers below. */
+    listSubmissions(admin.id, true, { page: 1, perPage: 100 }),
+    listRequests(admin.id, true, { page: 1, perPage: 100 }),
   ])
 
-  const pendingSubs = submissions.filter((s) => s.status === 'pending').slice(0, 3)
-  const openReqs = requests.filter((r) => r.status === 'open').slice(0, 3)
+  const pendingSubs = submissions.items.filter((s) => s.status === 'pending').slice(0, 3)
+  const openReqs = requests.items.filter((r) => r.status === 'open').slice(0, 3)
 
   const statCards: {
     label: string

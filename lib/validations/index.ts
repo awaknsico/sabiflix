@@ -24,9 +24,13 @@ const youtubeUrl = z
     'Must be a valid YouTube URL',
   )
 
-const pagination = z.object({
+/**
+ * Shared page/perPage query validation. Exported so every list endpoint
+ * (movies, requests, submissions, reviews, …) speaks one pagination contract.
+ */
+export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  perPage: z.coerce.number().int().min(1).max(1000).default(20),
+  perPage: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 const sortDir = z.enum(['asc', 'desc']).default('desc')
@@ -53,7 +57,7 @@ export const movieCreateSchema = z.object({
 
 export const movieUpdateSchema = movieCreateSchema.partial()
 
-export const movieQuerySchema = pagination.extend({
+export const movieQuerySchema = paginationSchema.extend({
   category: z.enum(['feature', 'short', 'documentary']).optional(),
   country: z.string().optional(),
   language: z.string().optional(),
