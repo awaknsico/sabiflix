@@ -26,10 +26,17 @@ export const GET = handler(async (request: Request) => {
   if (!rateLimit.allowed) return rateLimit.response
 
   const entries = await getPublishedEntries()
-  return ok({
+  const res = ok({
     movies: entries.map((e) => e.movie),
     sources: entries.map((e) => e.source),
   })
+  // Public catalog is immutable-ish — edge-cache it hard. CDN caches for 5 min,
+  // serves stale while it refreshes for up to a day (poor-network friendly).
+  res.headers.set(
+    'Cache-Control',
+    'public, max-age=60, s-maxage=300, stale-while-revalidate=86400',
+  )
+  return res
 })
 
 const MOVIE_CATEGORIES = new Set<MovieCategory>(['feature', 'short', 'documentary'])

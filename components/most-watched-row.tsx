@@ -15,8 +15,8 @@ import { useHomepageData } from '@/components/homepage/homepage-data-context'
  *
  * Uses shared homepage data to avoid duplicate API calls.
  */
-export function MostWatchedRow({ cards }: { cards: MovieCardDto[] }) {
-  const { watchHistory, ready } = useHomepageData()
+export function MostWatchedRow() {
+  const { watchHistory, ready, cards } = useHomepageData()
   const [period, setPeriod] = useState<WatchPeriod>('all')
   // rankMostWatched needs full Movies for its internal map — the DTO's id set
   // is enough to resolve here; ranking operates on history entries only.
@@ -44,7 +44,7 @@ export function MostWatchedRow({ cards }: { cards: MovieCardDto[] }) {
             ? 'The films viewers are coming back to this week.'
             : 'The films viewers keep coming back to.'
         }
-        movies={movies}
+        movieIds={movies.map((m) => m.id)}
         action={
           <div className="flex gap-1 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur-md">
             {(['all', 'week'] as const).map((p) => (

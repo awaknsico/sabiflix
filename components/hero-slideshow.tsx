@@ -45,10 +45,14 @@ export function HeroSlideshow({
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [])
 
-  /* Honour prefers-reduced-motion: static frame, manual controls only. */
+  /* Honour prefers-reduced-motion (and lite mode on poor connections):
+     static frame, manual controls only. */
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const onChange = () => setReducedMotion(media.matches)
+    const onChange = () =>
+      setReducedMotion(
+        media.matches || document.documentElement.getAttribute('data-lite') === 'true',
+      )
     onChange()
     media.addEventListener('change', onChange)
     return () => media.removeEventListener('change', onChange)

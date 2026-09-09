@@ -8,14 +8,13 @@ import { useHomepageData } from '@/components/homepage/homepage-data-context'
  * "Your watchlist" home row — only renders once hydration has read the store
  * and the viewer has actually saved something. Renders nothing otherwise.
  *
- * Uses shared homepage data to avoid duplicate API calls.
+ * Uses shared homepage data (watchlist IDs + card projections).
  */
-export function WatchlistRow({ cards }: { cards: MovieCardDto[] }) {
-  const { watchlistIds, ready } = useHomepageData()
-  const movieById = new Map(cards.map((m) => [m.id, m] as const))
+export function WatchlistRow() {
+  const { watchlistIds, ready, cardsById } = useHomepageData()
 
   const movies = watchlistIds
-    .map((id) => movieById.get(id))
+    .map((id) => cardsById.get(id))
     .filter((m): m is MovieCardDto => Boolean(m))
     .slice(0, 5)
 

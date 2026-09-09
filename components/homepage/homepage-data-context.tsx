@@ -1,13 +1,16 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Movie } from '@/lib/types'
+import type { MovieCardDto } from '@/lib/types'
 import type { WatchHistoryItem } from '@/lib/watch-history'
 
 interface HomepageData {
   watchHistory: WatchHistoryItem[]
   watchlistIds: string[]
   ready: boolean
+  /** Lean card projections shared by every section (deduped RSC payload). */
+  cards: MovieCardDto[]
+  cardsById: Map<string, MovieCardDto>
   removeFromHistory: (movieId: string) => void
   clearHistory: () => void
 }
@@ -16,6 +19,8 @@ const HomepageDataContext = createContext<HomepageData>({
   watchHistory: [],
   watchlistIds: [],
   ready: false,
+  cards: [],
+  cardsById: new Map(),
   removeFromHistory: () => {},
   clearHistory: () => {},
 })
@@ -23,6 +28,8 @@ const HomepageDataContext = createContext<HomepageData>({
 interface HomepageDataProviderProps {
   children: ReactNode
   movieIds: string[]
+  /** Lean card projections — serialized ONCE for the whole page. */
+  cards: MovieCardDto[]
   /**
    * When false the provider never fetches (signed-out visitors hit 401 on
    * both endpoints anyway). Children simply render their empty states.
@@ -37,10 +44,11 @@ interface HomepageDataProviderProps {
  * This eliminates duplicate API calls when multiple components
  * (ContinueWatching, MostWatchedRow, WatchlistRow) each fetch the same data.
  */
-export function HomepageDataProvider({ children, movieIds, enabled = true }: HomepageDataProviderProps) {
+export function HomepageDataProvider({ children, movieIds, cards, enabled = true }: HomepageDataProviderProps) {
   const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([])
   const [watchlistIds, setWatchlistIds] = useState<string[]>([])
   const [ready, setReady] = useState(!enabled)
+  const cardsById = useMemo(() => new Map(cards.map((m) => [m.id, m] as const)), [cards])
 
   // Fetch watch history once (skipped entirely for signed-out visitors)
   useEffect(() => {
@@ -121,8 +129,8 @@ export function HomepageDataProvider({ children, movieIds, enabled = true }: Hom
   )
 
   const value = useMemo(
-    () => ({ watchHistory, watchlistIds, ready, removeFromHistory, clearHistory }),
-    [watchHistory, watchlistIds, ready, removeFromHistory, clearHistory],
+    () => ({ watchHistory, watchlistIds, ready, cards, cardsById, removeFromHistory, clearHistory }),
+    [watchHistory, watchlistIds, ready, cards, cardsById, removeFromHistory, clearHistory],
   )
 
   return (

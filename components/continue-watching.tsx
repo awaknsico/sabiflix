@@ -21,14 +21,14 @@ function formatDuration(totalSeconds: number) {
  * "Pick up where you left off" — the quiet return-rate row. Reads live watch
  * history and links straight into the player at the saved position (`?t=`).
  *
- * Uses shared homepage data to avoid duplicate API calls.
+ * Uses shared homepage data (history + card projections) to avoid duplicate
+ * API calls and duplicate RSC payload.
  */
-export function ContinueWatching({ cards }: { cards: MovieCardDto[] }) {
-  const { watchHistory, ready, removeFromHistory } = useHomepageData()
-  const movieById = new Map(cards.map((m) => [m.id, m] as const))
+export function ContinueWatching() {
+  const { watchHistory, ready, cardsById, removeFromHistory } = useHomepageData()
 
   const items = resumeCandidates(watchHistory, { limit: 5 })
-    .map((entry) => ({ entry, movie: movieById.get(entry.movieId) }))
+    .map((entry) => ({ entry, movie: cardsById.get(entry.movieId) }))
     .filter((item): item is { entry: WatchHistoryItem; movie: MovieCardDto } =>
       Boolean(item.movie),
     )

@@ -20,8 +20,8 @@ const CATEGORY_LABEL: Record<string, string> = {
  * + watchlist: +2 for the viewer's top category, +1 for their top country.
  * Falls back to newest unwatched films when there isn't enough signal.
  */
-export function RecommendedRow({ cards }: { cards: MovieCardDto[] }) {
-  const { watchHistory, watchlistIds, ready } = useHomepageData()
+export function RecommendedRow() {
+  const { watchHistory, watchlistIds, ready, cards } = useHomepageData()
 
   const movies = useMemo(() => {
     const movieById = new Map(cards.map((m) => [m.id, m] as const))
@@ -70,7 +70,7 @@ export function RecommendedRow({ cards }: { cards: MovieCardDto[] }) {
 
   return (
     <div className="mx-auto w-full max-w-7xl">
-      <MovieCarousel title={title} description={description} movies={movies.list} />
+      <MovieCarousel title={title} description={description} movieIds={movies.list.map((m) => m.id)} />
     </div>
   )
 }

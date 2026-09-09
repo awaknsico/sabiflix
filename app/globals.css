@@ -120,3 +120,17 @@
   container-type: inline-size;
   container-name: card;
 }
+
+/* ——— Lite mode (see ProgressiveEnhancement) ———
+   Low-end devices / poor connections: strip the expensive paint work so
+   scrolling stays smooth on weak GPUs. Backdrop blurs become solid scrims,
+   transitions/animations collapse to instant state changes. */
+html[data-lite='true'] * {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+}
+html[data-lite='true'] [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-color: rgba(10, 11, 15, 0.92);
+}

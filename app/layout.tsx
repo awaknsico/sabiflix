@@ -4,6 +4,7 @@ import { Inter, Bricolage_Grotesque } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { LocalStorageCleanup } from '@/components/local-storage-cleanup'
 import { PwaRegister } from '@/components/pwa-register'
+import { ProgressiveEnhancement } from '@/components/progressive-enhancement'
 import './globals.css'
 
 const inter = Inter({
@@ -49,6 +50,7 @@ export default function RootLayout({
           <Toaster />
           <LocalStorageCleanup />
           <PwaRegister />
+          <ProgressiveEnhancement />
         </body>
       </html>
     </ClerkProvider>

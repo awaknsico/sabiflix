@@ -5,24 +5,32 @@ import type { ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MovieCard } from '@/components/movie-card'
-import type { MovieCardDto } from '@/lib/types'
+import { useHomepageData } from '@/components/homepage/homepage-data-context'
 
 export function MovieCarousel({
   title,
   description,
-  movies,
+  movieIds,
   index,
   action,
 }: {
   title: string
   description?: string
-  movies: MovieCardDto[]
+  /**
+   * IDs of the films to show. Resolved through the shared homepage context so
+   * the RSC payload only ships the card DTOs once instead of once per rail.
+   */
+  movieIds: string[]
   /** Section leader — renders the gold "No. 01" kicker (audit step 6). */
   index?: number
   /** Optional extra header control (e.g. a segmentation toggle), shown on the right. */
   action?: ReactNode
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const { cardsById } = useHomepageData()
+  const movies = movieIds
+    .map((id) => cardsById.get(id))
+    .filter((m): m is NonNullable<typeof m> => Boolean(m))
 
   function scrollBy(direction: 1 | -1) {
     const el = scrollerRef.current

@@ -12,7 +12,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       </div>
       <div className="relative hidden overflow-hidden border-l border-border/60 lg:block">
         <Image
-          src="/hero-cinema.png"
+          src="/hero-cinema.jpg"
           alt=""
           fill
           sizes="50vw"
