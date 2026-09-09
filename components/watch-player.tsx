@@ -134,10 +134,8 @@ export function PlayerDialog({
   const durationRef = useRef(0)
   const lastReportedRef = useRef(Math.max(0, Math.floor(startAt)))
   const playingRef = useRef(false)
-  /** Guards the immersive sequence and re-entry while a session is active. */
+  /** Guards the letterboxed fullscreen + orientation sequence. */
   const immersiveRunningRef = useRef(false)
-  const closingRef = useRef(false)
-  const reenterTimerRef = useRef<number | null>(null)
   /**
    * Autoplay-with-sound recovery window. Browsers that refuse unmuted
    * autoplay pause the video the instant sound is restored. While this window
@@ -147,10 +145,13 @@ export function PlayerDialog({
   const policyResumeRef = useRef({ until: 0, used: false })
 
   /**
-   * Mobile immersive playback sequence: fullscreen first, then landscape, then
-   * the YouTube iframe itself fullscreen. Browser fullscreen APIs must be
-   * awaited before the next step, because WebKit rejects screen-orientation
-   * locks unless the document is fullscreen. Failures never block playback.
+   * Option B — letterboxed dialog fullscreen with auto-rotate.
+   *
+   * Fullscreen targets only the dialog container (letterboxed: black borders
+   * preserved, no zoom/crop) so iOS still auto-rotates — WebKit rejects
+   * orientation locks unless something is fullscreen. Authority over the video
+   * element itself stays with YouTube: the iframe is never forced fullscreen,
+   * so its own fullscreen button letterboxes correctly.
    */
   const enterImmersivePlayback = useCallback(async () => {
     if (typeof window === 'undefined') return
@@ -170,19 +171,10 @@ export function PlayerDialog({
       if (orientation && typeof orientation.lock === 'function') {
         await orientation.lock('landscape').catch(() => {})
       }
-
-      const iframe = mountRef.current?.querySelector('iframe')
-      if (
-        iframe &&
-        document.fullscreenElement !== iframe &&
-        typeof iframe.requestFullscreen === 'function'
-      ) {
-        await iframe.requestFullscreen().catch(() => {})
-      }
     } finally {
       immersiveRunningRef.current = false
     }
-  }, [dialogRef, mountRef])
+  }, [dialogRef])
 
   /** Restore portrait orientation when the player closes. */
   const restoreOrientation = useCallback(async () => {
@@ -214,19 +206,15 @@ export function PlayerDialog({
   }, [movieId, recordProgress])
 
   const handleClose = useCallback(() => {
-    closingRef.current = true
-    if (reenterTimerRef.current !== null) {
-      window.clearTimeout(reenterTimerRef.current)
-      reenterTimerRef.current = null
-    }
     flushProgress()
     void restoreOrientation()
     onClose()
   }, [flushProgress, onClose, restoreOrientation])
 
-  // Lock scroll + Escape to close while the player is open. Also re-enter the
-  // YouTube iframe fullscreen if the browser leaves fullscreen while the video
-  // is still playing, without firing while the dialog is being closed.
+  // Lock scroll + Escape to close while the player is open. Fullscreen is only
+  // tracked passively: app chrome hides while any element is fullscreen and
+  // returns on exit. Nothing re-enters fullscreen — YouTube's own fullscreen
+  // button owns the video element, which is what preserves its letterbox.
   useEffect(() => {
     if (!open) return
     const original = document.body.style.overflow
@@ -238,15 +226,6 @@ export function PlayerDialog({
       // Track browser fullscreen so the close header / caption footer can hide
       // while the video owns the screen, then return when it exits.
       setIsFullscreen(document.fullscreenElement != null)
-      if (closingRef.current) return
-      if (!playingRef.current) return
-      if (document.fullscreenElement) return
-      if (reenterTimerRef.current !== null) return
-      reenterTimerRef.current = window.setTimeout(() => {
-        reenterTimerRef.current = null
-        if (closingRef.current || !playingRef.current || document.fullscreenElement) return
-        void enterImmersivePlayback()
-      }, 300)
     }
     window.addEventListener('keydown', onKey)
     document.addEventListener('fullscreenchange', onFullscreenChange)
@@ -255,7 +234,7 @@ export function PlayerDialog({
       window.removeEventListener('keydown', onKey)
       document.removeEventListener('fullscreenchange', onFullscreenChange)
     }
-  }, [open, handleClose, enterImmersivePlayback])
+  }, [open, handleClose])
 
   // Initialise the IFrame API player when opened.
   useEffect(() => {
@@ -270,11 +249,6 @@ export function PlayerDialog({
     lastReportedRef.current = Math.max(0, Math.floor(startAt))
     playingRef.current = false
     immersiveRunningRef.current = false
-    closingRef.current = false
-    if (reenterTimerRef.current !== null) {
-      window.clearTimeout(reenterTimerRef.current)
-      reenterTimerRef.current = null
-    }
 
     loadYouTubeApi()
       .then(() => {
@@ -333,10 +307,10 @@ export function PlayerDialog({
               if (cancelled) return
               if (event?.data === YT_STATE.PLAYING) {
                 playingRef.current = true
-                const iframe = mountRef.current?.querySelector('iframe')
-                if (!iframe || document.fullscreenElement !== iframe) {
-                  void enterImmersivePlayback()
-                }
+                // Letterboxed dialog fullscreen + rotate only; the YouTube
+                // iframe is never forced fullscreen, so its own fullscreen
+                // button keeps the video's black borders intact.
+                void enterImmersivePlayback()
               } else if (event?.data === YT_STATE.PAUSED) {
                 playingRef.current = false
                 const recovery = policyResumeRef.current
@@ -379,10 +353,6 @@ export function PlayerDialog({
 
     return () => {
       cancelled = true
-      if (reenterTimerRef.current !== null) {
-        window.clearTimeout(reenterTimerRef.current)
-        reenterTimerRef.current = null
-      }
       void restoreOrientation()
       playerRef.current?.destroy?.()
       playerRef.current = null
@@ -452,7 +422,7 @@ export function PlayerDialog({
             <span className="text-sm">Loading film…</span>
           </div>
         ) : null}
-        <div className={isFullscreen ? 'aspect-video max-h-full w-full' : 'mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6'}>
+        <div className={isFullscreen ? 'flex aspect-video max-h-full w-full items-center justify-center' : 'mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6'}>
           {apiFailed ? (
             /* Graceful fallback when the IFrame API can't load: a plain embed
                with the same distraction-free configuration. It autoplays muted
