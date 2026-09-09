@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { HomepageDataProvider } from '@/components/homepage/homepage-data-context'
+import { PersonalHero } from '@/components/homepage/personal-hero'
+import { RecommendedRow } from '@/components/homepage/recommended-row'
 import { MovieCarousel } from '@/components/movie-carousel'
 import { MovieCard } from '@/components/movie-card'
 import { HeroSlideshow, type HeroSlide } from '@/components/hero-slideshow'
@@ -12,6 +14,7 @@ import { WatchlistRow } from '@/components/watchlist-row'
 import { NewSinceVisit } from '@/components/new-since-visit'
 import { MostWatchedRow } from '@/components/most-watched-row'
 import { getFeaturedPlaylists, getPublishedEntries } from '@/lib/server-catalog'
+import { getCurrentUser } from '@/lib/api/auth'
 
 /** The seeded "Curator's Picks" playlist id (see d1/seed.sql). */
 const CURATORS_PICKS_ID = '0190c0de-3000-7000-8000-000000000001'
@@ -20,7 +23,12 @@ export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
   // Every row below is served by Cloudflare D1 — no bundled mock catalog.
-  const publishedEntries = await getPublishedEntries()
+  // One indexed users.clerk_id read detects signed-in members (page is
+  // force-dynamic, so Clerk's auth() works here) for the personalized view.
+  const [publishedEntries, member] = await Promise.all([
+    getPublishedEntries(),
+    getCurrentUser().catch(() => null),
+  ])
   const featuredPlaylists = await getFeaturedPlaylists(publishedEntries)
   const catalog = publishedEntries.map((e) => e.movie)
 
@@ -37,6 +45,86 @@ export default async function HomePage() {
 
   // Extract movie IDs for filtering watch history/watchlist
   const movieIds = catalog.map((m) => m.id)
+
+  /* Signed-in members get the "home base" view: no marketing hero, personal
+   * rows first, plus a taste-based recommendation rail. Suspended accounts
+   * fall back to the public view. */
+  const signedIn = member !== null && member.status !== 'suspended'
+
+  if (signedIn) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <SiteHeader />
+
+        <main className="flex flex-1 flex-col gap-12 pb-8">
+          {/* Shared data provider — fetches watch history & watchlist once for all rows */}
+          <HomepageDataProvider movieIds={movieIds}>
+            {/* Welcome-back hero with one-tap resume */}
+            <PersonalHero displayName={member.displayName || 'Member'} catalog={catalog} />
+
+            {/* Continue watching — pick up where you left off */}
+            <ContinueWatching catalog={catalog} />
+
+            {/* Your watchlist — renders once the viewer has saved something */}
+            <WatchlistRow catalog={catalog} />
+
+            {/* Because you watched … — taste-based recommendations */}
+            <RecommendedRow catalog={catalog} />
+          </HomepageDataProvider>
+
+          {/* Featured Playlists */}
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-12">
+            {featuredPlaylists.map((playlist, i) => (
+              <MovieCarousel
+                key={playlist.id}
+                index={i + 1}
+                title={playlist.name}
+                description={playlist.description ?? undefined}
+                movies={playlist.movies}
+              />
+            ))}
+          </div>
+
+          {/* Most watched — community pulse, computed from watch history */}
+          <MostWatchedRow catalog={catalog} />
+
+          {/* Latest additions */}
+          <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] tabular-nums text-primary">
+                  No. {String(featuredPlaylists.length + 1).padStart(2, '0')}
+                </span>
+                <h2 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">
+                  Latest Additions
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Freshly curated and added to the library.
+                </p>
+                <NewSinceVisit catalog={catalog} />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                render={<Link href="/catalog" />}
+                className="rounded-full text-muted-foreground hover:bg-white/5 hover:text-foreground"
+              >
+                View all
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {latest.map((movie, i) => (
+                <MovieCard key={movie.id} movie={movie} priority={i < 5} />
+              ))}
+            </div>
+          </section>
+        </main>
+
+        <SiteFooter />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -80,8 +168,10 @@ export default async function HomePage() {
           </div>
         </HeroSlideshow>
 
-        {/* Shared data provider — fetches watch history & watchlist once for all rows */}
-        <HomepageDataProvider movieIds={movieIds}>
+        {/* Shared data provider — fetches watch history & watchlist once for all rows.
+            Signed-out visitors never fetch: both endpoints 401 without a session,
+            so the provider stays disabled and children render empty states. */}
+        <HomepageDataProvider movieIds={movieIds} enabled={false}>
           {/* Continue watching — pick up where you left off */}
           <ContinueWatching catalog={catalog} />
 

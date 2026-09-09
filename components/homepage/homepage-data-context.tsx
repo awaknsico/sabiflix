@@ -23,6 +23,11 @@ const HomepageDataContext = createContext<HomepageData>({
 interface HomepageDataProviderProps {
   children: ReactNode
   movieIds: string[]
+  /**
+   * When false the provider never fetches (signed-out visitors hit 401 on
+   * both endpoints anyway). Children simply render their empty states.
+   */
+  enabled?: boolean
 }
 
 /**
@@ -32,13 +37,14 @@ interface HomepageDataProviderProps {
  * This eliminates duplicate API calls when multiple components
  * (ContinueWatching, MostWatchedRow, WatchlistRow) each fetch the same data.
  */
-export function HomepageDataProvider({ children, movieIds }: HomepageDataProviderProps) {
+export function HomepageDataProvider({ children, movieIds, enabled = true }: HomepageDataProviderProps) {
   const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([])
   const [watchlistIds, setWatchlistIds] = useState<string[]>([])
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(!enabled)
 
-  // Fetch watch history once
+  // Fetch watch history once (skipped entirely for signed-out visitors)
   useEffect(() => {
+    if (!enabled) return
     let cancelled = false
     fetch('/api/watch-history')
       .then((r) => r.json())
@@ -68,10 +74,11 @@ export function HomepageDataProvider({ children, movieIds }: HomepageDataProvide
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [enabled])
 
-  // Fetch watchlist once
+  // Fetch watchlist once (skipped entirely for signed-out visitors)
   useEffect(() => {
+    if (!enabled) return
     let cancelled = false
     fetch('/api/watchlist')
       .then((r) => r.json())
@@ -86,16 +93,17 @@ export function HomepageDataProvider({ children, movieIds }: HomepageDataProvide
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [enabled])
 
-  // Mark ready when both fetches complete
+  // Mark ready when both fetches complete (already ready when disabled)
   useEffect(() => {
+    if (!enabled) return
     if (watchHistory.length >= 0 && watchlistIds.length >= 0) {
       // Use a small delay to batch both fetches
       const timer = setTimeout(() => setReady(true), 100)
       return () => clearTimeout(timer)
     }
-  }, [watchHistory, watchlistIds])
+  }, [watchHistory, watchlistIds, enabled])
 
   // Client-side removal (no API endpoint for deleting history)
   const removeFromHistory = useMemo(
