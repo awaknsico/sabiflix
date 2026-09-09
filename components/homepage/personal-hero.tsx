@@ -44,9 +44,9 @@ export function PersonalHero({ displayName, catalog }: { displayName: string; ca
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {ready && latest ? (
-            <Button size="lg" variant="premium" render={<Link href={`/movie/${latest.movie.id}?t=${latest.entry.progressSeconds}`} />}>
+            <Button size="lg" variant="premium" render={<Link href={`/movie/${latest.movie.id}?t=${latest.entry.progressSeconds}&play=1`} />}>
               <Play className="fill-current" data-icon="inline-start" />
-              Resume {latest.movie.title}
+              Resume
             </Button>
           ) : (
             <Button size="lg" variant="premium" render={<Link href="/catalog" />}>

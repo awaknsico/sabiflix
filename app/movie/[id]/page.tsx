@@ -52,10 +52,10 @@ export default async function MovieDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ t?: string }>
+  searchParams: Promise<{ t?: string; play?: string }>
 }) {
   const { id } = await params
-  const { t } = await searchParams
+  const { t, play } = await searchParams
   const found = await lookupMovieWithSource(id)
   const movie = found?.movie
   if (!movie) notFound()
@@ -63,6 +63,10 @@ export default async function MovieDetailPage({
   /* Resume position from "Continue watching" deep links (?t=<seconds>). */
   const parsedT = Number(t)
   const startAt = Number.isFinite(parsedT) && parsedT > 0 ? Math.floor(parsedT) : 0
+
+  /* `?play=1` resume links skip the details page — the player dialog opens
+   * immediately on mount and serves playback straight away. */
+  const autoPlay = play === '1'
 
   const source = found?.source
   const cast = movie.actors ?? []
@@ -191,6 +195,7 @@ export default async function MovieDetailPage({
                         title={`${movie.title} (${movie.year})`}
                         startAt={startAt}
                         movieId={movie.id}
+                        autoPlay={autoPlay}
                       />
                       <PreviewPlayer
                         youtubeVideoId={source.youtubeVideoId}

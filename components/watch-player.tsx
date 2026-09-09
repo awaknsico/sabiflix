@@ -456,6 +456,7 @@ export function WatchPlayer({
   size = 'lg',
   startAt = 0,
   movieId,
+  autoPlay = false,
 }: {
   youtubeVideoId: string
   title: string
@@ -464,9 +465,20 @@ export function WatchPlayer({
   startAt?: number
   /** Records this playback in watch history (full-film watches only). */
   movieId?: string
+  /**
+   * When true the player dialog opens immediately on mount — used by
+   * resume deep links (`?play=1`) so "Resume" skips the details page
+   * and serves playback straight away.
+   */
+  autoPlay?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const close = useCallback(() => setOpen(false), [])
+
+  // Resume deep link — open playback without requiring another click.
+  useEffect(() => {
+    if (autoPlay) setOpen(true)
+  }, [autoPlay])
 
   return (
     <>

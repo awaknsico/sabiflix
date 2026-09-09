@@ -55,7 +55,7 @@ export function ContinueWatching({ catalog }: { catalog: Movie[] }) {
           return (
             <Link
               key={entry.id}
-              href={`/movie/${movie.id}?t=${entry.progressSeconds}`}
+              href={`/movie/${movie.id}?t=${entry.progressSeconds}&play=1`}
               className={cn(
                 'group relative flex flex-col overflow-hidden rounded-xl',
                 'border border-white/[0.06] bg-gradient-to-b from-card to-background',
