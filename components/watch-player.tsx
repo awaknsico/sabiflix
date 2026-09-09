@@ -119,6 +119,8 @@ export function PlayerDialog({
   const start = Math.max(0, Math.floor(startAt))
   const [ready, setReady] = useState(false)
   const [playerError, setPlayerError] = useState(false)
+  /** True while the browser is showing any element fullscreen — hides app chrome. */
+  const [isFullscreen, setIsFullscreen] = useState(false)
   /**
    * The IFrame API couldn't be loaded at all (blocked/stalled). We fall back
    * to a plain embed with the same distraction-free configuration so playback
@@ -233,6 +235,9 @@ export function PlayerDialog({
       if (e.key === 'Escape') handleClose()
     }
     function onFullscreenChange() {
+      // Track browser fullscreen so the close header / caption footer can hide
+      // while the video owns the screen, then return when it exits.
+      setIsFullscreen(document.fullscreenElement != null)
       if (closingRef.current) return
       if (!playingRef.current) return
       if (document.fullscreenElement) return
@@ -408,9 +413,9 @@ export function PlayerDialog({
       role="dialog"
       aria-modal="true"
       aria-label={`Now playing: ${title}`}
-      className="fixed inset-0 z-[100] flex flex-col bg-black"
+      className="fixed inset-0 z-[100] flex h-svh flex-col bg-black"
     >
-      <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className={isFullscreen ? 'sr-only' : 'flex items-center justify-between gap-4 px-4 py-3 sm:px-6'}>
         <p className="truncate font-serif text-sm font-medium text-white/90 sm:text-base">
           {title}
         </p>
@@ -447,7 +452,7 @@ export function PlayerDialog({
             <span className="text-sm">Loading film…</span>
           </div>
         ) : null}
-        <div className="mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6">
+        <div className={isFullscreen ? 'aspect-video max-h-full w-full' : 'mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6'}>
           {apiFailed ? (
             /* Graceful fallback when the IFrame API can't load: a plain embed
                with the same distraction-free configuration. It autoplays muted
@@ -468,7 +473,7 @@ export function PlayerDialog({
         </div>
       </div>
 
-      <p className="px-4 pb-3 text-center text-xs text-white/40 sm:px-6">{caption}</p>
+      <p className={isFullscreen ? 'sr-only' : 'px-4 pb-3 text-center text-xs text-white/40 sm:px-6'}>{caption}</p>
     </div>
   )
 }
