@@ -22,8 +22,9 @@ __v0_jsx-dev-runtime.ts
 # Throwaway Clerk-vs-Next integration test app (not part of the product)
 clerk-nextjs/
 
-# npm lockfile — this repo uses pnpm (see pnpm-lock.yaml); this is a stray artifact
-package-lock.json
+# This repo uses npm (package-lock.json is tracked). The old pnpm lockfiles
+# were removed - they had drifted out of sync with package.json and broke
+# Cloudflare Workers Builds' frozen installs.
 
 # Common ignores
 node_modules
