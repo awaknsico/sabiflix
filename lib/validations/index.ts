@@ -96,7 +96,9 @@ export type ReviewUpdate = z.infer<typeof reviewUpdateSchema>
 export const submissionCreateSchema = z.object({
   title: z.string().min(1).max(200),
   youtubeUrl,
-  description: z.string().max(2000).optional(),
+  // 5000 matches the movie synopsis cap and YouTube's own description limit,
+  // so an auto-fetched description can be carried through without truncation.
+  description: z.string().max(5000).optional(),
 })
 
 export const submissionReviewSchema = z.object({

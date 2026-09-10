@@ -31,10 +31,15 @@ export function useYouTubeMeta(url: string, { enabled = true }: { enabled?: bool
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/youtube/meta?url=${encodeURIComponent(url)}`)
-        const data = (await res.json()) as YouTubeMeta & { ok?: boolean; error?: string }
+        const data = (await res.json()) as {
+          ok?: boolean
+          error?: string
+          /** The API wraps every payload in an envelope — the metadata lives here. */
+          data?: YouTubeMeta
+        }
         if (cancelled) return
-        if (res.ok && data.ok) {
-          setState({ resolving: false, meta: data, error: null })
+        if (res.ok && data.ok && data.data) {
+          setState({ resolving: false, meta: data.data, error: null })
         } else {
           setState({ resolving: false, meta: null, error: data.error ?? 'Could not resolve that video.' })
         }

@@ -21,6 +21,12 @@ export interface YouTubeMeta {
   thumbnailUrl: string
   /** False when YouTube refuses to embed the video (oEmbed returns 401). */
   embeddable: boolean
+  /**
+   * Full video description (best-effort, server-side).
+   * oEmbed does not expose descriptions, so this is scraped from the watch
+   * page's `shortDescription` JSON — it may be undefined when the scrape fails.
+   */
+  description?: string
 }
 
 const VIDEO_ID_RE =
@@ -78,6 +84,72 @@ export async function pickBestThumbnail(videoId: string): Promise<string> {
   return buildThumbnailUrl(videoId, 'hqdefault')
 }
 
+const HTML_ENTITY_RE = /&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g
+
+const NAMED_HTML_ENTITIES: Record<string, string> = {
+  amp: '&', quot: '"', apos: "'", lt: '<', gt: '>',
+  nbsp: ' ', ndash: '–', mdash: '—', hellip: '…',
+}
+
+/** Minimal HTML-entity decoder for the `<meta name="description">` fallback. */
+function decodeHtmlEntities(input: string): string {
+  return input.replace(HTML_ENTITY_RE, (full, entity: string) => {
+    if (entity[0] === '#') {
+      const code =
+        entity[1]?.toLowerCase() === 'x'
+          ? Number.parseInt(entity.slice(2), 16)
+          : Number.parseInt(entity.slice(1), 10)
+      return Number.isFinite(code) ? String.fromCodePoint(code) : full
+    }
+    return NAMED_HTML_ENTITIES[entity] ?? full
+  })
+}
+
+/**
+ * Pull the full video description from the watch page. Best-effort.
+ *
+ * YouTube's public SSR HTML embeds it as the `shortDescription` string inside
+ * the `ytInitialPlayerResponse` JSON. We regex the JSON-encoded value out and
+ * JSON.parse it back to text (handles `\n`, escaped quotes, `\uXXXX`, …).
+ *
+ * Fallback: the `<meta name="description">` tag, which YouTube truncates to a
+ * snippet. Any failure returns undefined so callers can skip it gracefully.
+ */
+export async function fetchYouTubeDescription(videoId: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(
+      `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
+      { signal: AbortSignal.timeout(8000) },
+    )
+    if (!res.ok) return undefined
+    const html = await res.text()
+
+    const short = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)
+    if (short) {
+      try {
+        const decoded = JSON.parse(`"${short[1]}"`) as unknown
+        if (typeof decoded === 'string' && decoded.trim()) return decoded
+      } catch {
+        // Malformed player JSON — fall through to the meta tag.
+      }
+    }
+
+    const meta = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i)
+    if (meta?.[1]) {
+      const decodedMeta = decodeHtmlEntities(meta[1].trim())
+      // Unavailable/unlisted videos fall back to YouTube's generic site blurb —
+      // skip that junk so we never surface it as a synopsis.
+      if (decodedMeta && !decodedMeta.startsWith('Enjoy the videos and music')) {
+        return decodedMeta
+      }
+    }
+
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Resolve a YouTube URL to full metadata.
  *
@@ -109,7 +181,12 @@ export async function resolveYouTubeMeta(rawUrl: string): Promise<YouTubeMeta> {
     // Network blip — still return best-effort metadata with the ID thumbnail.
   }
 
-  const thumbnailUrl = await pickBestThumbnail(videoId)
+  // Pull the best thumbnail and the full description in parallel — the watch
+  // page and the thumbnail CDN are independent, so the extra request is free.
+  const [thumbnailUrl, description] = await Promise.all([
+    pickBestThumbnail(videoId),
+    fetchYouTubeDescription(videoId),
+  ])
 
-  return { videoId, title, authorName, thumbnailUrl, embeddable }
+  return { videoId, title, authorName, thumbnailUrl, embeddable, description }
 }

@@ -152,14 +152,22 @@ export default function AdminSubmissionsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls }),
       })
-      const data = await res.json()
-      const rows: Array<Record<string, unknown>> = Array.isArray(data.results)
-        ? data.results
-        : []
+      const data = (await res.json()) as {
+        ok?: boolean
+        error?: string
+        data?: { results?: Array<Record<string, unknown>> }
+      }
+      if (!data.ok) {
+        throw new Error(data.error ?? 'Could not resolve those URLs.')
+      }
+      const rows = Array.isArray(data.data?.results) ? data.data.results : []
       const resolved = rows.filter(
-        (r) => r.ok && typeof r.videoId === 'string' && typeof r.sourceUrl === 'string',
+        (r) =>
+          !r.error &&
+          typeof r.videoId === 'string' &&
+          typeof r.sourceUrl === 'string',
       )
-      const failed = rows.filter((r) => !r.ok).length
+      const failed = rows.filter((r) => !!r.error).length
 
       // Persist each resolved URL as a real submission so the review state
       // survives reloads and shows up on the filmmaker's dashboard too.
@@ -172,6 +180,8 @@ export default function AdminSubmissionsPage() {
             body: JSON.stringify({
               title: String(r.title ?? 'Untitled film'),
               youtubeUrl: String(r.sourceUrl),
+              description:
+                typeof r.description === 'string' ? r.description.slice(0, 5000) : '',
             }),
           })
           if (post.ok) saved++

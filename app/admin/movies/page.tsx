@@ -128,13 +128,15 @@ export default function AdminMoviesPage() {
   }, [search, categoryFilter, countryFilter, languageFilter, yearFilter])
 
   /* When the URL resolves, prefill title + poster without clobbering
-     anything the curator typed or picked manually. */
+     anything the curator typed or picked manually. The auto-fetched YouTube
+     description seeds the synopsis the same way — only when it's empty. */
   useEffect(() => {
     if (!meta) return
     setForm((f) => ({
       ...f,
       title: f.title.trim() ? f.title : meta.title,
       posterUrl: f.posterUrl ? f.posterUrl : meta.thumbnailUrl,
+      synopsis: f.synopsis.trim() ? f.synopsis : meta.description ?? '',
     }))
   }, [meta])
 

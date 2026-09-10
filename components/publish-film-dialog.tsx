@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Rocket } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Loader2, Rocket, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,14 @@ import type { Movie, MovieCategory, MovieSource } from '@/lib/types'
 export interface PublishedResult {
   movie: Movie
   source: MovieSource
+}
+
+/** Common quality labels the source store understands. */
+const SOURCE_QUALITIES = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', 'Unknown']
+
+/** Build the resolver URL for /api/youtube/meta from a bare video id. */
+function metaUrl(videoId: string): string {
+  return `/api/youtube/meta?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`
 }
 
 /**
@@ -64,6 +72,74 @@ export function PublishFilmDialog({
   const [language, setLanguage] = useState(LANGUAGES[0] as string)
   const [synopsis, setSynopsis] = useState(initialDescription)
   const [posterUrl, setPosterUrl] = useState(initialPoster)
+  const [actors, setActors] = useState('')
+  const [curationType, setCurationType] = useState<Movie['curationType']>('filmmaker')
+  const [quality, setQuality] = useState('1080p')
+  const [channelName, setChannelName] = useState('')
+  const [fetchingMeta, setFetchingMeta] = useState(false)
+
+  /**
+   * Resolve the video's metadata (full description + channel) and fill the
+   * synopsis. `replace` is true for the manual "Pull from YouTube" button —
+   * the curator clicked it, so overwriting their draft is expected. The
+   * automatic fetch only fills an empty synopsis and never clobbers a draft.
+   */
+  async function pullDescription(replace = false) {
+    if (!videoId) return
+    setFetchingMeta(true)
+    try {
+      const res = await fetch(metaUrl(videoId))
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean
+        data?: { description?: string; authorName?: string }
+      } | null
+      if (!payload?.ok || !payload.data) return
+      if (typeof payload.data.authorName === 'string' && payload.data.authorName.trim()) {
+        setChannelName(payload.data.authorName.trim())
+      }
+      const fetched =
+        typeof payload.data.description === 'string'
+          ? payload.data.description.trim().slice(0, 5000)
+          : ''
+      if (fetched) {
+        setSynopsis((prev) => (replace || !prev.trim() ? fetched : prev))
+      }
+    } catch {
+      // Best-effort — the curator can hit "Pull from YouTube" to retry.
+    } finally {
+      setFetchingMeta(false)
+    }
+  }
+
+  /* Auto-fill on open: pull the description + channel so the curator sees
+     real metadata with zero extra clicks (skips the draft if one exists). */
+  useEffect(() => {
+    if (!open || !videoId) return
+    let cancelled = false
+    setFetchingMeta(true)
+    fetch(metaUrl(videoId))
+      .then((res) => res.json().catch(() => null))
+      .then((payload: { ok?: boolean; data?: { description?: string; authorName?: string } } | null) => {
+        if (cancelled || !payload?.ok || !payload.data) return
+        if (typeof payload.data.authorName === 'string' && payload.data.authorName.trim()) {
+          setChannelName(payload.data.authorName.trim())
+        }
+        const fetched =
+          typeof payload.data.description === 'string'
+            ? payload.data.description.trim().slice(0, 5000)
+            : ''
+        if (fetched) {
+          setSynopsis((prev) => (prev.trim() ? prev : fetched))
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setFetchingMeta(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, videoId])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -81,21 +157,30 @@ export function PublishFilmDialog({
             language,
             category,
             synopsis: synopsis.trim(),
-            posterUrl: posterUrl.trim(),
-            curated: true,
+            posterUrl: posterUrl.trim() || '/placeholder.svg',
+            curationType: curationType || undefined,
+            actors: actors.split(',').map((a) => a.trim()).filter(Boolean),
           },
           source: {
             youtubeVideoId: videoId,
-            youtubeChannelName: '',
+            youtubeChannelName: channelName.trim() || undefined,
+            quality: quality || '1080p',
             previewStartSeconds: 60,
           },
         }),
       })
-      const data = await res.json()
-      if (!res.ok || !data.ok || !data.entry) {
-        throw new Error(data.error ?? 'Publish failed.')
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean
+        error?: string
+        data?: { entry?: PublishedResult }
+      } | null
+      // The API wraps every payload in the standard { ok, data } envelope —
+      // the entry lives at payload.data.entry. Reading it at the top level is
+      // what made publishing appear to fail while the film was really saved.
+      if (!payload?.ok || !payload.data?.entry) {
+        throw new Error(payload?.error ?? 'Publish failed.')
       }
-      const entry = data.entry as PublishedResult
+      const entry = payload.data.entry
       toast.success('Published to the catalog', {
         description: `“${entry.movie.title}” now has its own film page.`,
       })
@@ -196,7 +281,76 @@ export function PublishFilmDialog({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="publish-synopsis">Synopsis</FieldLabel>
+              <FieldLabel htmlFor="publish-actors">Lead Actors</FieldLabel>
+              <Input
+                id="publish-actors"
+                value={actors}
+                onChange={(e) => setActors(e.target.value)}
+                placeholder="e.g. Gideon Okeke, Rita Dominic"
+              />
+              <p className="pt-1 text-xs text-muted-foreground">
+                Comma-separated list of lead actors.
+              </p>
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel>Curation badge</FieldLabel>
+                <Select
+                  value={curationType ?? ''}
+                  onValueChange={(v) => setCurationType((v || undefined) as Movie['curationType'])}
+                >
+                  <SelectTrigger aria-label="Curation badge">
+                    <SelectValue placeholder="No badge" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="admin">Admin Curated (gold)</SelectItem>
+                      <SelectItem value="requested">Community Requested (cyan)</SelectItem>
+                      <SelectItem value="filmmaker">Filmmaker Submitted (green)</SelectItem>
+                      <SelectItem value="">No badge</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Video quality</FieldLabel>
+                <Select value={quality} onValueChange={(v) => setQuality(v ?? '1080p')}>
+                  <SelectTrigger aria-label="Video quality">
+                    <SelectValue placeholder="Quality" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {SOURCE_QUALITIES.map((q) => (
+                        <SelectItem key={q} value={q}>
+                          {q}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <Field>
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel htmlFor="publish-synopsis">Synopsis</FieldLabel>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs text-muted-foreground"
+                  onClick={() => pullDescription(true)}
+                  disabled={fetchingMeta || !videoId}
+                >
+                  {fetchingMeta ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-3.5" />
+                  )}
+                  {fetchingMeta ? 'Fetching…' : 'Pull from YouTube'}
+                </Button>
+              </div>
               <Textarea
                 id="publish-synopsis"
                 rows={3}
