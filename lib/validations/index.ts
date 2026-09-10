@@ -115,9 +115,14 @@ export const filmSubmissionApplicationSchema = z.object({
   message: z.string().min(1).max(2000).optional(),
 })
 
+/**
+ * Review payload for the filmmaker access application review endpoint
+ * (`PATCH /api/admin/filmmaker-applications/:id`). Mirrors the repository helper
+ * `reviewFilmmakerApplication`.
+ */
 export const filmSubmissionApplicationReviewSchema = z.object({
   status: z.enum(['approved', 'rejected']),
-  rejectionReason: z.string().min(1).max(1000).optional(),
+  rejectionReason: z.string().min(1).max(10000).optional(),
 })
 
 export type FilmSubmissionApplicationCreate = z.infer<typeof filmSubmissionApplicationSchema>

@@ -1,7 +1,7 @@
-import { handler, ok, Errors } from '@/lib/api/envelope'
+import { handler, ok } from '@/lib/api/envelope'
 import { requireAdmin } from '@/lib/api/auth'
 import { parsePaginationParams, paginationMeta } from '@/lib/api/pagination'
-import { listSubmissions, listPendingFilmmakerApplications, reviewFilmmakerApplication } from '@/lib/repositories/submissions'
+import { listSubmissions } from '@/lib/repositories/submissions'
 import { epochToIso } from '@/lib/time'
 
 export const runtime = 'nodejs'
@@ -25,18 +25,4 @@ export const GET = handler(async (request: Request) => {
     },
     paginationMeta(page, perPage, total),
   )
-})
-
-/** Pending filmmaker access applications for the admin queue. */
-export const GET_FILMMAKER_APPLICATIONS = handler(async () => {
-  const admin = await requireAdmin()
-  const apps = await listPendingFilmmakerApplications()
-  return ok({
-    applications: apps.map((a) => ({
-      id: a.id,
-      userId: a.userId,
-      message: a.message,
-      createdAt: epochToIso(a.createdAt),
-    })),
-  })
 })

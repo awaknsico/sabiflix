@@ -47,37 +47,71 @@ const roleVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   creator: 'secondary',
   user: 'outline',
 }
+
+interface ApplicationStatus {
+  id: string
+  status: 'pending' | 'approved' | 'rejected'
+  message: string | null
+  rejectionReason: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+  submittedAt: string
+}
+
+function applicationStateLabel(application: ApplicationStatus | null): string {
+  if (!application) return 'Not submitted'
+  if (application.status !== 'pending') return application.status === 'approved' ? 'Approved' : 'Rejected'
+  return 'Pending review'
+}
+
+function applicationStateVariant(application: ApplicationStatus | null): 'default' | 'secondary' | 'outline' | 'destructive' {
+  if (!application) return 'outline'
+  if (application.status === 'approved') return 'default'
+  if (application.status === 'pending') return 'secondary'
+  return 'destructive'
+}
 export function ProfileView() {
   const { user: clerkUser } = useUser()
   const [profile, setProfile] = useState<ProfileUser | null>(null)
+  const [application, setApplication] = useState<ApplicationStatus | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/me')
-      .then((r) => r.json().catch(() => null))
-      .then((data) => {
-        if (cancelled) return
-        if (data?.ok === true && data.data?.user) {
-          setProfile({
-            ...data.data.user,
-            email: clerkUser?.primaryEmailAddress?.emailAddress,
-            createdAt: clerkUser?.createdAt
-              ? new Date(clerkUser.createdAt).toISOString()
-              : undefined,
-          })
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          toast.error('Failed to load profile', {
-            description: 'Please try again later.',
-          })
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+    const loadData = async () => {
+      let profileData: any = null
+      try {
+        const res = await fetch('/api/me')
+        profileData = await res.json().catch(() => null)
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled && profileData?.ok === true && profileData.data?.user) {
+        setProfile({
+          ...profileData.data.user,
+          email: clerkUser?.primaryEmailAddress?.emailAddress,
+          createdAt: clerkUser?.createdAt
+            ? new Date(clerkUser.createdAt).toISOString()
+            : undefined,
+        })
+      }
+
+      let applicationData: any = null
+      try {
+        const res = await fetch('/api/submissions/filmmaker-applications')
+        applicationData = await res.json().catch(() => null)
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled && applicationData?.ok === true && applicationData.data?.application) {
+        setApplication(applicationData.data.application as ApplicationStatus)
+      } else if (!cancelled) {
+        setApplication(null)
+      }
+
+      if (!cancelled) setLoading(false)
+    }
+    loadData()
     return () => {
       cancelled = true
     }

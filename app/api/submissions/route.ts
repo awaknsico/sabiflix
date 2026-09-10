@@ -6,7 +6,7 @@ import { handler, ok, Errors } from '@/lib/api/envelope'
 import { requireUser } from '@/lib/api/auth'
 import { submissionCreateSchema } from '@/lib/validations'
 import { parsePaginationParams, paginationMeta } from '@/lib/api/pagination'
-import { createSubmission, listSubmissions } from '@/lib/repositories/submissions'
+import { canSubmitFilms, createSubmission, canCreateAnotherSubmission, listSubmissions } from '@/lib/repositories/submissions'
 import { epochToIso } from '@/lib/time'
 
 export const runtime = 'nodejs'
@@ -40,6 +40,12 @@ export const POST = handler(async (request: Request) => {
   const ytMatch = data.youtubeUrl.match(
     /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/,
   )
+  const eligible = await canSubmitFilms(user.id)
+  if (!eligible) throw Errors.forbidden('Film submission access is restricted to approved filmmakers. Submit an application to request access.')
+
+  const canCreate = await canCreateAnotherSubmission(user.id)
+  if (!canCreate) throw Errors.conflict('You already have a pending submission. Resolve it before submitting another.')
+
   const submission = await createSubmission({
     userId: user.id, title: data.title, youtubeUrl: data.youtubeUrl,
     youtubeVideoId: ytMatch ? ytMatch[1] : null, description: data.description,

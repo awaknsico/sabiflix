@@ -79,8 +79,9 @@ export class ApiHttpError extends Error {
 
 export const Errors = {
   unauthorized: () => new ApiHttpError('Authentication required', 401, 'UNAUTHORIZED'),
-  forbidden: () => new ApiHttpError('You do not have permission', 403, 'FORBIDDEN'),
+  forbidden: (msg = 'You do not have permission') => new ApiHttpError(msg, 403, 'FORBIDDEN'),
   notFound: (what = 'Resource') => new ApiHttpError(`${what} not found`, 404, 'NOT_FOUND'),
   validation: (msg: string) => new ApiHttpError(msg, 422, 'VALIDATION_ERROR'),
+  conflict: (msg: string) => new ApiHttpError(msg, 409, 'CONFLICT'),
   rateLimited: () => new ApiHttpError('Too many requests', 429, 'RATE_LIMITED'),
 }

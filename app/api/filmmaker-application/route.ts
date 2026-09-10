@@ -1,6 +1,6 @@
 import { handler, ok, Errors } from '@/lib/api/envelope'
 import { requireUser } from '@/lib/api/auth'
-import { filmmakerApplicationSchema } from '@/lib/validations'
+import { filmSubmissionApplicationSchema } from '@/lib/validations'
 import { getFilmmakerApplication, createFilmmakerApplication } from '@/lib/repositories/submissions'
 import { epochToIso } from '@/lib/time'
 
@@ -32,7 +32,7 @@ export const POST = handler(async (request: Request) => {
   const body = await request.json().catch(() => null)
   if (!body) throw Errors.validation('Request body must be valid JSON')
 
-  const data = filmmakerApplicationSchema.parse(body)
+  const data = filmSubmissionApplicationSchema.parse(body)
   const app = await createFilmmakerApplication(user.id, data.message ?? null)
 
   return ok({
