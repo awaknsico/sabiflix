@@ -74,6 +74,11 @@ export async function rateLimit(
 
 /** Extract client IP from request headers. */
 export function clientIp(request: Request): string {
+  /* Cloudflare's canonical client-IP header — always present on edge requests
+     and the reliable choice on Workers. x-forwarded-for can be missing here or
+     rewritten by internal hops (we observed a shared `::1` bucket otherwise). */
+  const cfIp = request.headers.get('cf-connecting-ip')
+  if (cfIp) return cfIp.trim()
   const xff = request.headers.get('x-forwarded-for')
   if (xff) return xff.split(',')[0].trim()
   return 'unknown'
