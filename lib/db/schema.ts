@@ -171,6 +171,18 @@ export const activityLogs = sqliteTable('activity_logs', {
   index('idx_activity_action').on(t.action),
 ])
 
+export const filmSubmissionApplications = sqliteTable('film_submission_applications', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  message: text('message'),
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
+  reviewedBy: text('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: integer('reviewed_at'),
+  rejectionReason: text('rejection_reason'),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
+}, (t) => [index('idx_film_app_user').on(t.userId), index('idx_film_app_status').on(t.status)])
+
 export const contentReports = sqliteTable('content_reports', {
   id: text('id').primaryKey(),
   reporterId: text('reporter_id').references(() => users.id, { onDelete: 'set null' }),
@@ -205,6 +217,7 @@ export type WatchHistoryEntry = typeof watchHistory.$inferSelect
 export type Review = typeof reviews.$inferSelect
 export type FilmSubmission = typeof filmSubmissions.$inferSelect
 export type FilmRequest = typeof filmRequests.$inferSelect
+export type FilmSubmissionApplication = typeof filmSubmissionApplications.$inferSelect
 export type Playlist = typeof playlists.$inferSelect
 export type ActivityLog = typeof activityLogs.$inferSelect
 export type ContentReport = typeof contentReports.$inferSelect

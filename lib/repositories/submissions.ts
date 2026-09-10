@@ -12,7 +12,11 @@ function db() { return getDB() }
 
 export type FilmSubmissionRow = FilmSubmission & { userDisplayName: string | null }
 
-/** Paged window over submissions (newest first) with a total count. */
+/** Paged window over submissions (newest first) with a total count.
+ *
+ * When `includeAll` is true (admin view), returns every submission across all
+ * users. Otherwise scopes to the requesting user.
+ */
 export async function listSubmissions(
   userId: string,
   includeAll: boolean = false,
@@ -56,16 +60,160 @@ export async function listSubmissions(
   }
 }
 
+/** How many pending submissions a single user is allowed to have at once. */
+const MAX_PENDING_SUBMISSIONS_PER_USER = 3
+
+/**
+ * True when the given user is allowed to create new film submissions.
+ *
+ * Admins and already-approved creators can always submit. Everyone else needs
+ * an approved filmmaker access application (or a pre-existing application row
+ * for legacy accounts — see `ensureUserCanSubmit` below).
+ */
+export async function canSubmitFilms(user: { id: string; role: string; status: string }): Promise<boolean> {
+  if (user.role === 'admin' || user.role === 'creator') return true
+  if (user.status !== 'active') return false
+  const rows = await db()
+    .select({ status: filmSubmissionApplications.status })
+    .from(filmSubmissionApplications)
+    .where(eq(filmSubmissionApplications.userId, user.id))
+    .limit(1)
+    .all()
+  return rows[0]?.status === 'approved'
+}
+
+/**
+ * Returns the submitter-facing reason a user is currently blocked from
+ * submitting, or null when they are eligible.
+ */
+export async function submissionBlockedReason(user: { id: string; role: string; status: string }): Promise<string | null> {
+  if (user.role === 'admin' || user.role === 'creator') return null
+  if (user.status !== 'active') return 'Your account is not active.'
+  const rows = await db()
+    .select({
+      status: filmSubmissionApplications.status,
+      rejectionReason: filmSubmissionApplications.rejectionReason,
+    })
+    .from(filmSubmissionApplications)
+    .where(eq(filmSubmissionApplications.userId, user.id))
+    .limit(1)
+    .all()
+  const app = rows[0]
+  if (!app) return 'You need filmmaker access before you can submit films.'
+  if (app.status === 'pending') return 'Your filmmaker access request is still under review.'
+  if (app.status === 'rejected') {
+    return app.rejectionReason
+      ? `Your filmmaker access request was not approved: ${app.rejectionReason}`
+      : 'Your filmmaker access request was not approved. You can apply again.'
+  }
+  return 'You need filmmaker access before you can submit films.'
+}
+
+/**
+ * Noop for eligible users. For ineligible users, inserts a pending filmmaker
+ * access application row behind the scenes so legacy / pre-gate accounts keep
+ * being able to submit until an admin reviews them — otherwise the first
+ * submission attempt by a long-standing user would be silently dropped.
+ */
+export async function ensureUserCanSubmit(user: { id: string; role: string; status: string }): Promise<void> {
+  if (await canSubmitFilms(user)) return
+  const existing = await db()
+    .select({ id: filmSubmissionApplications.id })
+    .from(filmSubmissionApplications)
+    .where(eq(filmSubmissionApplications.userId, user.id))
+    .limit(1)
+    .all()
+  if (!existing[0]) {
+    const { uuid_v7 } = await import('@/lib/ids')
+    await db().insert(filmSubmissionApplications).values({
+      id: uuid_v7(),
+      userId: user.id,
+      status: 'pending',
+      createdAt: nowEpoch(),
+      updatedAt: nowEpoch(),
+    })
+  }
+}
+
+/** Paged window over pending submissions for a single user — used for the cap. */
+async function countPendingSubmissionsForUser(userId: string): Promise<number> {
+  const d = db()
+  const rows = await d
+    .select({ value: count() })
+    .from(filmSubmissions)
+    .where(and(eq(filmSubmissions.userId, userId), eq(filmSubmissions.status, 'pending')))
+    .all()
+  return Number(rows[0]?.value ?? 0)
+}
+
+/**
+ * Raised when a user tries to submit while already at the per-user pending cap.
+ */
+export class SubmissionLimitReached extends Error {
+  constructor() {
+    super(`You already have ${MAX_PENDING_SUBMISSIONS_PER_USER} pending submissions.`)
+  }
+}
+
+/**
+ * True when the user still has room for another pending submission.
+ */
+export async function canCreateAnotherSubmission(userId: string): Promise<boolean> {
+  return (await countPendingSubmissionsForUser(userId)) < MAX_PENDING_SUBMISSIONS_PER_USER
+}
+
+/**
+ * Gate for the film submission form.
+ *
+ * Returns `{ ok: true }` when the user may submit, or `{ ok: false, reason }`
+ * when they should be turned away at the door (with a human-readable reason
+ * that the UI can surface directly).
+ */
+export async function canSubmitFilms(userId: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (await isFilmmaker(userId)) return { ok: true }
+
+  const app = await getFilmmakerApplication(userId)
+  if (app?.status === 'approved') return { ok: true }
+  if (app?.status === 'rejected') {
+    return { ok: false, reason: 'Your filmmaker access application is still under review. We will notify you when a decision is made.' }
+  }
+  if (app?.status === 'pending') {
+    return { ok: false, reason: 'You already have a pending filmmaker access application — we will review it soon.' }
+  }
+
+  return { ok: false, reason: 'Submitting a film is limited to verified filmmakers. Click "Upgrade to Filmmaker" on your profile to apply.' }
+}
+
 export async function getSubmission(id: string): Promise<FilmSubmission | null> {
   const rows = await db().select().from(filmSubmissions).where(eq(filmSubmissions.id, id)).all()
   return rows[0] ?? null
 }
 
+/** Returns the active filmmaker access application for the given user, or null. */
+export async function getFilmmakerApplicationForUser(userId: string): Promise<{
+  id: string
+  status: 'pending' | 'approved' | 'rejected'
+  message: string | null
+  rejectionReason: string | null
+  reviewedBy: string | null
+  reviewedAt: number | null
+  createdAt: number
+} | null> {
+  return getFilmmakerApplication(userId)
+}
+
 export async function createSubmission(data: {
   userId: string; title: string; youtubeUrl: string; youtubeVideoId: string | null; description?: string | null
 }): Promise<FilmSubmission> {
-  const { uuid_v7 } = await import('@/lib/ids')
   const d = db()
+  const existing = await d.select().from(filmSubmissions)
+    .where(and(eq(filmSubmissions.userId, data.userId), eq(filmSubmissions.status, 'pending' as const)))
+    .limit(1).all()
+  if (existing[0]) {
+    throw new Error('You already have a pending submission — finish or delete it before submitting another.')
+  }
+
+  const { uuid_v7 } = await import('@/lib/ids')
   const now = nowEpoch()
   const values = {
     id: uuid_v7(), userId: data.userId, title: data.title,
@@ -76,6 +224,118 @@ export async function createSubmission(data: {
   }
   await d.insert(filmSubmissions).values(values)
   return values as FilmSubmission
+}
+
+/** Read-only shape of a filmmaker access application, as seen by the applicant. */
+export interface FilmmakerApplicationView {
+  id: string
+  status: 'pending' | 'approved' | 'rejected'
+  message: string | null
+  reviewedBy: string | null
+  reviewedAt: number | null
+  rejectionReason: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * Returns the applicant's current application (if any), or null.
+ */
+export async function getFilmmakerApplication(userId: string): Promise<FilmmakerApplicationView | null> {
+  const rows = await db()
+    .select({
+      id: filmSubmissionApplications.id,
+      status: filmSubmissionApplications.status,
+      message: filmSubmissionApplications.message,
+      reviewedBy: filmSubmissionApplications.reviewedBy,
+      reviewedAt: filmSubmissionApplications.reviewedAt,
+      rejectionReason: filmSubmissionApplications.rejectionReason,
+      createdAt: filmSubmissionApplications.createdAt,
+      updatedAt: filmSubmissionApplications.updatedAt,
+    })
+    .from(filmSubmissionApplications)
+    .where(eq(filmSubmissionApplications.userId, userId))
+    .limit(1)
+    .all()
+  return rows[0] ?? null
+}
+
+/**
+ * Creates a filmmaker access application for the current user.
+ *
+ * One active application per user: if they already have a pending application,
+ * this is a no-op that returns the existing row. Otherwise inserts a new one.
+ */
+export async function createFilmmakerApplication(userId: string, message: string | null): Promise<FilmmakerApplicationView> {
+  const existing = await getFilmmakerApplication(userId)
+  if (existing && existing.status === 'pending') return existing
+
+  const { uuid_v7 } = await import('@/lib/ids')
+  const now = nowEpoch()
+  const values = {
+    id: uuid_v7(),
+    userId,
+    message: message ?? null,
+    status: 'pending' as const,
+    reviewedBy: null,
+    reviewedAt: null,
+    rejectionReason: null,
+    createdAt: now,
+    updatedAt: now,
+  }
+  await db().insert(filmSubmissionApplications).values(values)
+  return values as unknown as FilmmakerApplicationView
+}
+
+/**
+ * Admin review of a filmmaker access application.
+ */
+export async function reviewFilmmakerApplication(
+  id: string,
+  data: { status: 'approved' | 'rejected'; rejectionReason?: string | null; reviewedBy: string },
+): Promise<void> {
+  const d = db()
+  const now = nowEpoch()
+  const updates: Record<string, unknown> = {
+    status: data.status,
+    reviewedBy: data.reviewedBy,
+    reviewedAt: now,
+    updatedAt: now,
+  }
+  if (data.status === 'rejected') {
+    updates.rejectionReason = data.rejectionReason ?? null
+  }
+  if (data.status === 'approved') {
+    updates.rejectionReason = null
+    // Promote the user to an approved creator.
+    await d
+      .update(users)
+      .set({ role: 'creator' as const, status: 'active' as const, updatedAt: now })
+      .where(eq(users.id, (await db().select({ userId: filmSubmissionApplications.userId }).from(filmSubmissionApplications).where(eq(filmSubmissionApplications.id, id)).limit(1).all())[0]?.userId ?? ''))
+  }
+  await d.update(filmSubmissionApplications).set(updates).where(eq(filmSubmissionApplications.id, id))
+}
+
+/** Returns every pending filmmaker application for the admin queue. */
+export async function listPendingFilmmakerApplications(): Promise<{
+  id: string
+  userId: string
+  message: string | null
+  createdAt: number
+}[]> {
+  const d = db()
+  const rows = await d
+    .select({
+      id: filmSubmissionApplications.id,
+      userId: filmSubmissionApplications.userId,
+      message: filmSubmissionApplications.message,
+      createdAt: filmSubmissionApplications.createdAt,
+    })
+    .from(filmSubmissionApplications)
+    .where(eq(filmSubmissionApplications.status, 'pending'))
+    .orderBy(desc(filmSubmissionApplications.createdAt))
+    .all()
+  return rows as unknown as { id: string; userId: string; message: string | null; createdAt: number }[]
 }
 
 export async function updateSubmission(id: string, data: Partial<{

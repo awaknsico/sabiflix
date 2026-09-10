@@ -108,6 +108,22 @@ export type SubmissionCreate = z.infer<typeof submissionCreateSchema>
 export type SubmissionReview = z.infer<typeof submissionReviewSchema>
 
 /* ------------------------------------------------------------------ */
+/* Filmmaker access application                                        */
+/* ------------------------------------------------------------------ */
+
+export const filmSubmissionApplicationSchema = z.object({
+  message: z.string().min(1).max(2000).optional(),
+})
+
+export const filmSubmissionApplicationReviewSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+  rejectionReason: z.string().min(1).max(1000).optional(),
+})
+
+export type FilmSubmissionApplicationCreate = z.infer<typeof filmSubmissionApplicationSchema>
+export type FilmSubmissionApplicationReview = z.infer<typeof filmSubmissionApplicationReviewSchema>
+
+/* ------------------------------------------------------------------ */
 /* Request                                                             */
 /* ------------------------------------------------------------------ */
 
