@@ -62,7 +62,7 @@ export function DashboardView() {
   const [submissions, setSubmissions] = useState<FilmSubmission[]>([])
   const [displayName, setDisplayName] = useState('You')
   /* Whether this account may submit films (approved filmmaker / creator / admin).
-     null until /api/me loads — the form shows meanwhile; the server guards anyway. */
+     null until /api/me loads - the form shows meanwhile; the server guards anyway. */
   const [submissionGate, setSubmissionGate] = useState<{ eligible: boolean; pending: boolean } | null>(null)
   const [requestSubmitting, setRequestSubmitting] = useState(false)
   const [submissionSubmitting, setSubmissionSubmitting] = useState(false)
@@ -106,7 +106,7 @@ export function DashboardView() {
       .catch(() => {})
   }, [])
 
-  /* Live watch history — same store the player records into. */
+  /* Live watch history - same store the player records into. */
   const {
     entries: historyEntries,
     ready: historyReady,
@@ -119,7 +119,7 @@ export function DashboardView() {
     historyFilter === 'all' || (historyFilter === 'watched') === isComplete(entry),
   )
 
-  /* "Submit your film" — paste a URL, we auto-fetch the details. */
+  /* "Submit your film" - paste a URL, we auto-fetch the details. */
   const [subTitle, setSubTitle] = useState('')
   const [submitUrl, setSubmitUrl] = useState('')
   const [subDescription, setSubDescription] = useState('')
@@ -208,8 +208,8 @@ export function DashboardView() {
       setSubDescription('')
       toast.success('Film submitted for review', {
         description: meta?.videoId
-          ? `Details auto-filled from YouTube — a moderator will watch “${title}” shortly.`
-          : 'Thanks — a moderator will watch it shortly.',
+          ? `Details auto-filled from YouTube - a moderator will watch "${title}" shortly.`
+          : 'Thanks - a moderator will watch it shortly.',
       })
     } catch (error) {
       toast.error('Could not submit film', {
@@ -303,7 +303,7 @@ export function DashboardView() {
               {visibleHistory.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted-foreground">
                   {historyFilter === 'watched'
-                    ? 'No completed films yet — keep watching.'
+                    ? 'No completed films yet - keep watching.'
                     : 'Nothing in progress right now.'}
                 </p>
               ) : (
@@ -457,7 +457,7 @@ export function DashboardView() {
                       <Textarea
                         id="description"
                         name="description"
-                        placeholder="Any details that help identify this film — year, director, actors, plot details."
+                        placeholder="Any details that help identify this film - year, director, actors, plot details."
                         rows={3}
                       />
                     </Field>
@@ -523,11 +523,11 @@ export function DashboardView() {
                       <Badge variant="secondary" className="mx-0.5">
                         pending review
                       </Badge>{' '}
-                      — we&apos;ll update you as soon as a moderator looks at it.
+                      - we&apos;ll update you as soon as a moderator looks at it.
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      Request filmmaker access from your profile to unlock submissions — it only takes a
+                      Request filmmaker access from your profile to unlock submissions - it only takes a
                       moment.
                     </p>
                   )}
@@ -574,7 +574,7 @@ export function DashboardView() {
                     {resolving ? (
                       <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
                         <Loader2 className="size-4 animate-spin" />
-                        Fetching film details from YouTube…
+                        Fetching film details from YouTube...
                       </div>
                     ) : meta ? (
                       <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/40 p-3">
@@ -593,12 +593,12 @@ export function DashboardView() {
                           <span className="truncate text-xs text-muted-foreground">
                             {meta.authorName}
                             {meta.embeddable
-                              ? ' · can be embedded on SabiFlix'
-                              : ' · cannot be embedded on SabiFlix'}
+                              ? ' * can be embedded on SabiFlix'
+                              : ' * cannot be embedded on SabiFlix'}
                           </span>
                           {!meta.embeddable ? (
                             <span className="text-xs text-destructive">
-                              We won&apos;t be able to play this film — pick a different upload.
+                              We won&apos;t be able to play this film - pick a different upload.
                             </span>
                           ) : null}
                         </div>

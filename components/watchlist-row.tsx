@@ -5,7 +5,7 @@ import type { MovieCardDto } from '@/lib/types'
 import { useHomepageData } from '@/components/homepage/homepage-data-context'
 
 /**
- * "Your watchlist" home row — only renders once hydration has read the store
+ * "Your watchlist" home row - only renders once hydration has read the store
  * and the viewer has actually saved something. Renders nothing otherwise.
  *
  * Uses shared homepage data (watchlist IDs + card projections).
@@ -27,7 +27,7 @@ export function WatchlistRow() {
           Your watchlist
         </h2>
         <p className="text-sm text-muted-foreground">
-          Saved by you, for later. Yours — not an algorithm&rsquo;s.
+          Saved by you, for later. Yours - not an algorithm&rsquo;s.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

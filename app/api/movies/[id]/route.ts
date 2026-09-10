@@ -1,9 +1,9 @@
 /**
  * Single movie endpoints.
  *
- * GET    /api/movies/:id  — public movie detail with sources
- * PATCH  /api/movies/:id  — admin update
- * DELETE /api/movies/:id  — admin soft-delete
+ * GET    /api/movies/:id  - public movie detail with sources
+ * PATCH  /api/movies/:id  - admin update
+ * DELETE /api/movies/:id  - admin soft-delete
  */
 
 import { handler, ok, Errors } from '@/lib/api/envelope'

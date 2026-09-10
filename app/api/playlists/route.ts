@@ -1,8 +1,8 @@
 /**
  * Playlist endpoints.
  *
- * GET  /api/playlists — all playlists with their ordered movies.
- * PUT  /api/playlists — replace one playlist's movie order (admin only).
+ * GET  /api/playlists - all playlists with their ordered movies.
+ * PUT  /api/playlists - replace one playlist's movie order (admin only).
  */
 
 import { handler, ok, Errors } from '@/lib/api/envelope'

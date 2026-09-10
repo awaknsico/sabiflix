@@ -1,7 +1,7 @@
 /**
  * Single film request endpoints.
  *
- * PATCH /api/requests/:id — admin only: mark a request found (optionally
+ * PATCH /api/requests/:id - admin only: mark a request found (optionally
  *                           linking it to a catalog movie) or close it.
  */
 

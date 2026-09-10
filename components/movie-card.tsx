@@ -13,7 +13,7 @@ const categoryLabel: Record<MovieCardDto['category'], string> = {
 }
 
 /**
- * Curation badge — communicates *why* a film is on SabiFlix.
+ * Curation badge - communicates *why* a film is on SabiFlix.
  * Each variant has a distinct color + icon for instant recognition at any card size.
  */
 function CurationBadge({ type }: { type: NonNullable<MovieCardDto['curationType']> }) {
@@ -59,7 +59,7 @@ export function MovieCard({
         className,
       )}
     >
-      {/* ── Top section: Category | Year | Favorite ── */}
+      {/* -- Top section: Category | Year | Favorite -- */}
       <div className="flex items-start justify-between gap-2 px-2 pb-1 pt-2 @md:px-3 @md:pt-3">
         <div className="flex flex-col gap-1">
           <Badge
@@ -75,7 +75,7 @@ export function MovieCard({
         <WatchlistToggle movieId={movie.id} title={movie.title} variant="overlay" size="sm" />
       </div>
 
-      {/* ── Middle section: Poster (16:9-ish) ── */}
+      {/* -- Middle section: Poster (16:9-ish) -- */}
       <div className="relative aspect-[3/2] w-full overflow-hidden bg-[#1C1E24]">
         <Image
           src={movie.posterUrl || '/placeholder.svg'}
@@ -88,7 +88,7 @@ export function MovieCard({
         {/* Always-on bottom scrim */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A0B0F]/95 via-[#0A0B0F]/10 to-transparent" />
 
-        {/* Watch pill — revealed on hover */}
+        {/* Watch pill - revealed on hover */}
         <div className="absolute inset-x-0 bottom-0 flex translate-y-2 items-center justify-center pb-3 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-ember px-3.5 py-1.5 text-xs font-semibold text-[#14150E] shadow-[0_0_20px_rgba(242,146,29,0.35)]">
             <Play className="size-3.5 fill-current" />
@@ -97,7 +97,7 @@ export function MovieCard({
         </div>
       </div>
 
-      {/* ── Bottom section: Title | Actors | Country ── */}
+      {/* -- Bottom section: Title | Actors | Country -- */}
       <div className="flex flex-1 flex-col gap-1 px-2 pb-2 @md:px-3 @md:pb-3">
         {/* Title: 2 lines */}
         <h3

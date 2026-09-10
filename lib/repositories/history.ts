@@ -83,7 +83,7 @@ export async function getLastProgressEntry(userId: string, movieId: string): Pro
   return r ? (r as unknown as HistoryEntry) : null
 }
 
-/** Resume list — recent watch history entries, most recently watched first. */
+/** Resume list - recent watch history entries, most recently watched first. */
 export async function getResumeList(userId: string, limit = 50): Promise<HistoryEntry[]> {
   const rows = await db()
     .select({

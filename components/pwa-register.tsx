@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 
 /**
- * Registers the service worker. Production only — a caching worker in dev
+ * Registers the service worker. Production only - a caching worker in dev
  * would serve stale Turbopack chunks and break hot reload.
  */
 export function PwaRegister() {

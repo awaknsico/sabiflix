@@ -1,10 +1,10 @@
 /**
- * D1 database client — binding-first with HTTP-API + libsql fallback.
+ * D1 database client - binding-first with HTTP-API + libsql fallback.
  *
  * On Cloudflare (OpenNext) we get D1 via the workers binding: `env.DB`.
  * On Node / Vercel / local dev we fall back to:
  *   - D1 HTTP API (remote D1 from Node)
- *   - libsql local file (dev fallback, prebuilt binaries — no native compilation)
+ *   - libsql local file (dev fallback, prebuilt binaries - no native compilation)
  *
  * NOTE on types: every consumer is written against ONE canonical API
  * (`select/insert/update/delete ... .all()/.run()/.get()`), so `DB` is typed
@@ -40,7 +40,7 @@ export function getDB(): DB {
     }
   } catch { /* fall through */ }
 
-  // 2) D1 HTTP API (remote) — in non-dev deployments (or when explicitly
+  // 2) D1 HTTP API (remote) - in non-dev deployments (or when explicitly
   //    forced), we talk to the provisioned Cloudflare D1 over HTTP. In local
   //    dev the seeded local libsql file (path #3) is preferred so the app works
   //    without a live Cloudflare database; set FORCE_D1_HTTP=1 to opt into remote.
@@ -95,12 +95,12 @@ function createD1HttpProxy(accountId: string, databaseId: string, token: string)
     let rows: Record<string, unknown>[]
     let rawRows: unknown[][]
     if (Array.isArray(results)) {
-      // Current D1 HTTP API — `results` is already an array of row objects
+      // Current D1 HTTP API - `results` is already an array of row objects
       // keyed by column name (column order preserved, matching select order).
       rows = results as Record<string, unknown>[]
       rawRows = rows.map((row) => Object.values(row))
     } else if (results && Array.isArray(results.rows)) {
-      // Legacy response shape — `results` is `{ columns: string[], rows: unknown[][] }`.
+      // Legacy response shape - `results` is `{ columns: string[], rows: unknown[][] }`.
       const columns = (results.columns ?? []) as string[]
       rawRows = results.rows as unknown[][]
       rows = rawRows.map((row) => {

@@ -1,10 +1,10 @@
 /**
- * Drizzle Kit configuration — generates SQL migrations from the schema.
+ * Drizzle Kit configuration - generates SQL migrations from the schema.
  *
  * Usage:
- *   npx drizzle-kit generate   → creates SQL in d1/migrations/
- *   npx drizzle-kit migrate    → applies to local SQLite (dev)
- *   wrangler d1 migrations apply sabiflix  → applies to remote D1
+ *   npx drizzle-kit generate   -> creates SQL in d1/migrations/
+ *   npx drizzle-kit migrate    -> applies to local SQLite (dev)
+ *   wrangler d1 migrations apply sabiflix  -> applies to remote D1
  */
 
 import type { Config } from 'drizzle-kit'

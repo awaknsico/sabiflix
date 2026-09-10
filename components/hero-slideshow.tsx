@@ -16,7 +16,7 @@ export interface HeroSlide {
 const SLIDE_INTERVAL_MS = 8000
 
 /**
- * Quiet cinema reel — a slow crossfade of featured key art behind the identity
+ * Quiet cinema reel - a slow crossfade of featured key art behind the identity
  * line. Calm by design (audit 5.5): art stays at backdrop opacity under the
  * scrims, the autoplay pauses on hover/focus/hidden-tab, and
  * `prefers-reduced-motion` freezes the reel to manual controls only.
@@ -61,7 +61,7 @@ export function HeroSlideshow({
   const next = useCallback(() => setIndex((i) => (i + 1) % count), [count])
   const prev = useCallback(() => setIndex((i) => (i - 1 + count) % count), [count])
 
-  /* One quiet crossfade every 8s — the timer resets on any manual change. */
+  /* One quiet crossfade every 8s - the timer resets on any manual change. */
   useEffect(() => {
     if (!autoRotate) return
     const timer = setTimeout(next, SLIDE_INTERVAL_MS)
@@ -90,7 +90,7 @@ export function HeroSlideshow({
         }
       }}
     >
-      {/* Slides — each is the player-backdrop pair: blurred field + key art */}
+      {/* Slides - each is the player-backdrop pair: blurred field + key art */}
       {slides.map((slide, i) => {
         const active = i === index
         return (
@@ -106,7 +106,7 @@ export function HeroSlideshow({
               active ? 'opacity-100' : 'opacity-0',
             )}
           >
-            {/* Layer 1 — blurred field (MovieBoxHD player-backdrop) */}
+            {/* Layer 1 - blurred field (MovieBoxHD player-backdrop) */}
             <Image
               src={slide.image}
               alt=""
@@ -115,7 +115,7 @@ export function HeroSlideshow({
               sizes="100vw"
               className="scale-110 object-cover opacity-60 blur-2xl"
             />
-            {/* Layer 2 — key art */}
+            {/* Layer 2 - key art */}
             <Image
               src={slide.image}
               alt=""
@@ -128,14 +128,14 @@ export function HeroSlideshow({
         )
       })}
 
-      {/* Layer 3 — edge + bottom scrims (headline contrast holds on every slide) */}
+      {/* Layer 3 - edge + bottom scrims (headline contrast holds on every slide) */}
       <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/60" />
 
-      {/* Content — owned by the page: kicker pill → headline → CTAs → trust chip */}
+      {/* Content - owned by the page: kicker pill -> headline -> CTAs -> trust chip */}
       {children}
 
-      {/* Reel controls — bottom-right glass chrome, quiet by design */}
+      {/* Reel controls - bottom-right glass chrome, quiet by design */}
       {count > 1 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
           <div className="mx-auto flex max-w-7xl items-center justify-end px-4 pb-6 sm:px-6 lg:px-8">

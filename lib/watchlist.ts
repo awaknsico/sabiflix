@@ -8,7 +8,7 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
  * One module-level store, ONE `/api/watchlist` fetch per page load: every
  * consumer (each movie card's save toggle, the dashboard, the homepage
  * provider) subscribes to the same snapshot instead of firing its own
- * request. This matters — a signed-in homepage previously re-fetched the
+ * request. This matters - a signed-in homepage previously re-fetched the
  * watchlist once per rendered card (~25 worker invocations per visit).
  *
  * The list is the server's shape (one row per film per user), sorted by
@@ -60,7 +60,7 @@ async function load() {
       return
     }
   } catch {
-    /* 401 (signed-out) or network error → empty state, ready to render */
+    /* 401 (signed-out) or network error -> empty state, ready to render */
   }
   setState({ ids: [], ready: true })
 }
@@ -116,7 +116,7 @@ export function useWatchlist(validMovieIds?: readonly string[]) {
         })
       }
     } catch {
-      /* Silently fail — the toggle will retry on the next click. */
+      /* Silently fail - the toggle will retry on the next click. */
     }
   }, [])
 

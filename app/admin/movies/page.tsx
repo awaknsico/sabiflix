@@ -56,7 +56,7 @@ function emptyForm() {
 
 const isPublished = (m: Movie) => m.id.startsWith('mov-pub-')
 
-/** Server-paginated table window — matches the `perPage` cap in the API. */
+/** Server-paginated table window - matches the `perPage` cap in the API. */
 const PAGE_SIZE = 20
 
 export default function AdminMoviesPage() {
@@ -122,14 +122,14 @@ export default function AdminMoviesPage() {
   }, [refreshCatalog])
 
   /* Any search/filter change sends the curator back to the first page.
-     setPage(1) is a no-op bailout when already there — no extra fetch. */
+     setPage(1) is a no-op bailout when already there - no extra fetch. */
   useEffect(() => {
     setPage(1)
   }, [search, categoryFilter, countryFilter, languageFilter, yearFilter])
 
   /* When the URL resolves, prefill title + poster without clobbering
      anything the curator typed or picked manually. The auto-fetched YouTube
-     description seeds the synopsis the same way — only when it's empty. */
+     description seeds the synopsis the same way - only when it's empty. */
   useEffect(() => {
     if (!meta) return
     setForm((f) => ({
@@ -173,10 +173,10 @@ export default function AdminMoviesPage() {
         if (!res.ok || data?.ok === false) throw new Error(data?.error ?? 'Delete failed')
         setList((prev) => prev.filter((m) => m.id !== movie.id))
         setTotal((t) => Math.max(0, t - 1))
-        /* Deleted the last row of a later page → step back so the table
+        /* Deleted the last row of a later page -> step back so the table
            isn't left showing an empty page. */
         if (list.length === 1 && page > 1) setPage((p) => p - 1)
-        toast.success('Movie deleted', { description: `“${movie.title}” was removed from the catalog.` })
+        toast.success('Movie deleted', { description: `"${movie.title}" was removed from the catalog.` })
       } catch (err) {
         toast.error('Delete failed', { description: err instanceof Error ? err.message : 'Please try again.' })
       }
@@ -216,7 +216,7 @@ export default function AdminMoviesPage() {
       if (!res.ok || !data?.ok) throw new Error(data?.error ?? 'Save failed')
       await refreshCatalog()
       toast.success(editingId ? 'Movie updated' : 'Movie added', {
-        description: `“${form.title.trim()}” is now in the catalog.`,
+        description: `"${form.title.trim()}" is now in the catalog.`,
       })
       setDialogOpen(false)
     } catch {
@@ -234,7 +234,7 @@ export default function AdminMoviesPage() {
         <div className="flex flex-col gap-1">
           <h1 className="font-serif text-3xl font-bold tracking-tight">Movies</h1>
           <p className="text-muted-foreground">
-            Manage the catalog — {total} title{total === 1 ? '' : 's'} in total.
+            Manage the catalog - {total} title{total === 1 ? '' : 's'} in total.
           </p>
         </div>
         <Button onClick={openAdd}>
@@ -252,7 +252,7 @@ export default function AdminMoviesPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search movies by title, synopsis, or actor…"
+                placeholder="Search movies by title, synopsis, or actor..."
                 className="pl-9"
               />
               {search ? (
@@ -393,7 +393,7 @@ export default function AdminMoviesPage() {
                       <div className="flex min-w-0 flex-col">
                         <span className="truncate font-medium">{movie.title}</span>
                         <span className="truncate text-xs text-muted-foreground">
-                          {movie.country} · {movie.language} · {movie.category}
+                          {movie.country} * {movie.language} * {movie.category}
                         </span>
                       </div>
                     </TableCell>
@@ -590,16 +590,16 @@ export default function AdminMoviesPage() {
               {resolving ? (
                 <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
-                  Fetching film details from YouTube…
+                  Fetching film details from YouTube...
                 </div>
               ) : meta ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                     <Check className="size-3.5 text-primary" />
                     <span className="truncate font-medium text-foreground">{meta.title}</span>
-                    <span>· {meta.authorName}</span>
+                    <span>* {meta.authorName}</span>
                     {!meta.embeddable ? (
-                      <span className="text-destructive">· cannot be embedded</span>
+                      <span className="text-destructive">* cannot be embedded</span>
                     ) : null}
                   </div>
                   <ThumbnailPicker
@@ -654,7 +654,7 @@ export default function AdminMoviesPage() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={saving}>
-                  {saving ? 'Saving…' : editingId ? 'Save changes' : 'Add movie'}
+                  {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add movie'}
                 </Button>
               </DialogFooter>
             </FieldGroup>

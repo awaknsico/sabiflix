@@ -8,7 +8,7 @@ import { resumeCandidates } from '@/lib/watch-history'
 import type { Movie, MovieCardDto } from '@/lib/types'
 
 /**
- * Signed-in welcome hero — replaces the marketing hero for members.
+ * Signed-in welcome hero - replaces the marketing hero for members.
  *
  * Two variants (all data comes from the already-fetched homepage context,
  * so this adds zero API calls):
@@ -38,7 +38,7 @@ export function PersonalHero({ displayName }: { displayName: string }) {
         </h1>
         <p className="max-w-xl text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg">
           {ready && latest
-            ? `${latest.movie.title} is waiting — resume in one tap, or browse something new.`
+            ? `${latest.movie.title} is waiting - resume in one tap, or browse something new.`
             : 'Start with Curator\u2019s Picks, save films to your watchlist, and we\u2019ll keep your place.'}
         </p>
         <div className="flex flex-wrap items-center gap-3">

@@ -68,7 +68,7 @@ const MAX_PENDING_SUBMISSIONS_PER_USER = 3
  *
  * Admins and already-approved creators can always submit. Everyone else needs
  * an approved filmmaker access application (or a pre-existing application row
- * for legacy accounts — see `ensureUserCanSubmit` below).
+ * for legacy accounts - see `ensureUserCanSubmit` below).
  *
  * Queries the database directly for both role and application status rather
  * than trusting caller-provided values.
@@ -123,7 +123,7 @@ export async function submissionBlockedReason(user: { id: string; role: string; 
 /**
  * Noop for eligible users. For ineligible users, inserts a pending filmmaker
  * access application row behind the scenes so legacy / pre-gate accounts keep
- * being able to submit until an admin reviews them — otherwise the first
+ * being able to submit until an admin reviews them - otherwise the first
  * submission attempt by a long-standing user would be silently dropped.
  */
 export async function ensureUserCanSubmit(user: { id: string; role: string; status: string }): Promise<void> {
@@ -146,7 +146,7 @@ export async function ensureUserCanSubmit(user: { id: string; role: string; stat
   }
 }
 
-/** Paged window over pending submissions for a single user — used for the cap. */
+/** Paged window over pending submissions for a single user - used for the cap. */
 async function countPendingSubmissionsForUser(userId: string): Promise<number> {
   const d = db()
   const rows = await d
@@ -199,7 +199,7 @@ export async function createSubmission(data: {
     .where(and(eq(filmSubmissions.userId, data.userId), eq(filmSubmissions.status, 'pending' as const)))
     .limit(1).all()
   if (existing[0]) {
-    throw new Error('You already have a pending submission — finish or delete it before submitting another.')
+    throw new Error('You already have a pending submission - finish or delete it before submitting another.')
   }
 
   const { uuid_v7 } = await import('@/lib/ids')
@@ -318,7 +318,7 @@ export async function reviewFilmmakerApplication(
   const d = db()
   const now = nowEpoch()
 
-  /* Look up the applicant once — needed for the creator promotion on approve. */
+  /* Look up the applicant once - needed for the creator promotion on approve. */
   const appRows = await d
     .select({ userId: filmSubmissionApplications.userId })
     .from(filmSubmissionApplications)

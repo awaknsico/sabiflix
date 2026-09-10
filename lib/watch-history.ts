@@ -52,7 +52,7 @@ function apiToItem(entry: HistoryApiItem): WatchHistoryItem {
   const updatedAt = new Date(entry.updatedAt * 1000).toISOString()
   // The server is the source of truth for completion (completedAt survives
   // heartbeats that omit durationSeconds). Only fall back to the local
-  // ≥95% ratio when the server sent no completedAt (legacy rows).
+  // >=95% ratio when the server sent no completedAt (legacy rows).
   const completedAt =
     entry.completedAt != null
       ? new Date(entry.completedAt * 1000).toISOString()
@@ -71,11 +71,11 @@ function apiToItem(entry: HistoryApiItem): WatchHistoryItem {
 }
 
 /* ------------------------------------------------------------------ */
-/* Pure helpers (unchanged — operate on the normalized shape)          */
+/* Pure helpers (unchanged - operate on the normalized shape)          */
 /* ------------------------------------------------------------------ */
 
 /** True when the viewer has finished. The server's completedAt is the source
- * of truth — it survives heartbeats that omit durationSeconds, and it is
+ * of truth - it survives heartbeats that omit durationSeconds, and it is
  * always a string|null (never undefined) after apiToItem normalization. */
 export function isComplete(
   entry: Pick<WatchHistoryItem, 'completedAt' | 'progressSeconds' | 'durationSeconds'>,
@@ -83,7 +83,7 @@ export function isComplete(
   return entry.completedAt != null
 }
 
-/** Incomplete entries, latest activity first — the raw material for "Continue watching". */
+/** Incomplete entries, latest activity first - the raw material for "Continue watching". */
 export function resumeCandidates(
   entries: WatchHistoryItem[],
   { limit = 5 }: { limit?: number } = {},
@@ -97,7 +97,7 @@ export function resumeCandidates(
 /**
  * Community "most watched" ranking: every watch contributes a recency-weighted
  * score (1.0 today, ~0.5 a week ago, ~0.25 after two) so one binge session
- * cannot dominate the rail — count + freshness, not raw plays. Movies are
+ * cannot dominate the rail - count + freshness, not raw plays. Movies are
  * resolved through the passed D1-backed catalog.
  */
 export function rankMostWatched(
@@ -182,7 +182,7 @@ export function useWatchHistory(validMovieIds?: readonly string[]) {
       })
       .catch(() => {
         if (cancelled) return
-        /* 401 (signed-out) or network error → empty state, ready to render */
+        /* 401 (signed-out) or network error -> empty state, ready to render */
         setReady(true)
       })
     return () => {
@@ -231,7 +231,7 @@ export function useWatchHistory(validMovieIds?: readonly string[]) {
           setEntries((prev) => [apiToItem(e), ...prev.filter((x) => x.movieId !== movieId)])
         }
       } catch {
-        /* Silently fail — the player retries every 5s, so the next heartbeat
+        /* Silently fail - the player retries every 5s, so the next heartbeat
            will pick up the slack. No local write means no stale data. */
       }
     },
@@ -247,7 +247,7 @@ export function useWatchHistory(validMovieIds?: readonly string[]) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             movieId,
-            // Keep the current resume position — completion is an explicit
+            // Keep the current resume position - completion is an explicit
             // flag, not progress == duration.
             progressSeconds: entry?.progressSeconds ?? 0,
             durationSeconds:
@@ -263,7 +263,7 @@ export function useWatchHistory(validMovieIds?: readonly string[]) {
           setEntries((prev) => [apiToItem(e), ...prev.filter((x) => x.movieId !== movieId)])
         }
       } catch {
-        /* Silently fail — the next heartbeat will retry. */
+        /* Silently fail - the next heartbeat will retry. */
       }
     },
     [entries],

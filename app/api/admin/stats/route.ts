@@ -1,5 +1,5 @@
 /**
- * Admin dashboard stats — real counts from D1.
+ * Admin dashboard stats - real counts from D1.
  *
  * GET /api/admin/stats
  */

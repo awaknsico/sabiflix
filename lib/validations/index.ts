@@ -26,7 +26,7 @@ const youtubeUrl = z
 
 /**
  * Shared page/perPage query validation. Exported so every list endpoint
- * (movies, requests, submissions, reviews, …) speaks one pagination contract.
+ * (movies, requests, submissions, reviews, ...) speaks one pagination contract.
  */
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

@@ -27,7 +27,7 @@ export default function ErrorPage({
             The projector jammed.
           </h1>
           <p className="text-pretty text-muted-foreground">
-            Something went wrong on our side — not yours. Try again, or head back to the
+            Something went wrong on our side - not yours. Try again, or head back to the
             catalog while we thread the film back through.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">

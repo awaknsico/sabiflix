@@ -19,7 +19,7 @@ const bricolage = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sabiflix.vercel.app'),
-  title: 'SabiFlix — Curated African Cinema',
+  title: 'SabiFlix - Curated African Cinema',
   description:
     'A distraction-free streaming platform for Nollywood, African films, short films, and documentaries. Curated by humans, for lovers of African stories.',
   icons: {

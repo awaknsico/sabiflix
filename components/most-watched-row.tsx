@@ -9,16 +9,16 @@ import { cn } from '@/lib/utils'
 import { useHomepageData } from '@/components/homepage/homepage-data-context'
 
 /**
- * "Most watched on SabiFlix" — a community pulse rail computed from watch
+ * "Most watched on SabiFlix" - a community pulse rail computed from watch
  * history (recency-weighted, so one binge session can't dominate). Framed as
- * a quiet pulse beneath the curated rows — not as an algorithm's picks.
+ * a quiet pulse beneath the curated rows - not as an algorithm's picks.
  *
  * Uses shared homepage data to avoid duplicate API calls.
  */
 export function MostWatchedRow() {
   const { watchHistory, ready, cards } = useHomepageData()
   const [period, setPeriod] = useState<WatchPeriod>('all')
-  // rankMostWatched needs full Movies for its internal map — the DTO's id set
+  // rankMostWatched needs full Movies for its internal map - the DTO's id set
   // is enough to resolve here; ranking operates on history entries only.
   const ranked = useMemo(() => {
     const byId = new Map(cards.map((m) => [m.id, m] as const))

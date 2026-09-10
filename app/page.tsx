@@ -1,4 +1,4 @@
-﻿import Link from 'next/link'
+import Link from 'next/link'
 import { ArrowRight, BadgeCheck, Play, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SiteHeader } from '@/components/site-header'
@@ -30,13 +30,13 @@ export default async function HomePage() {
   const featuredPlaylists = await getFeaturedPlaylists(publishedEntries)
   const catalog = publishedEntries.map((e) => e.movie)
 
-  // Lean card projections — serialized in the RSC payload exactly ONCE (as the
+  // Lean card projections - serialized in the RSC payload exactly ONCE (as the
   // HomepageDataProvider prop). Every section resolves from the shared context
   // by id, which is what shrinks the payload from ~285KB toward <120KB.
   const cards = catalog.map(toCardDto)
   const latestCards = sortLatest(cards, 10)
 
-  /* Hero reel — the Curator's Picks playlist doubles as the featured backdrop. */
+  /* Hero reel - the Curator's Picks playlist doubles as the featured backdrop. */
   const heroSource = (featuredPlaylists.find((p) => p.id === CURATORS_PICKS_ID) ?? featuredPlaylists[0])
   const heroSlides: HeroSlide[] = (heroSource?.movies ?? [])
     .filter((m) => m.isActive)

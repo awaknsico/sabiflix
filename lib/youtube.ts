@@ -24,7 +24,7 @@ export interface YouTubeMeta {
   /**
    * Full video description (best-effort, server-side).
    * oEmbed does not expose descriptions, so this is scraped from the watch
-   * page's `shortDescription` JSON — it may be undefined when the scrape fails.
+   * page's `shortDescription` JSON - it may be undefined when the scrape fails.
    */
   description?: string
 }
@@ -67,7 +67,7 @@ async function headExists(url: string): Promise<boolean> {
       method: 'HEAD',
       signal: AbortSignal.timeout(4000),
       // i.ytimg.com ignores a browser-style referrer from an unknown origin
-      // and serves thumbnails to anyone — no special headers required.
+      // and serves thumbnails to anyone - no special headers required.
     })
     return res.ok
   } catch {
@@ -88,7 +88,18 @@ const HTML_ENTITY_RE = /&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g
 
 const NAMED_HTML_ENTITIES: Record<string, string> = {
   amp: '&', quot: '"', apos: "'", lt: '<', gt: '>',
-  nbsp: ' ', ndash: '–', mdash: '—', hellip: '…',
+  nbsp: ' ', ndash: '-', mdash: '-', hellip: '...',
+}
+
+/**
+ * The watch-page scrape is a plain HTTP GET, so present a normal browser -
+ * some egress networks (datacenter IPs, CDNs) get refused otherwise.
+ */
+const YT_WATCH_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+  'Accept-Language': 'en-US,en;q=0.9',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 }
 
 /** Minimal HTML-entity decoder for the `<meta name="description">` fallback. */
@@ -108,18 +119,52 @@ function decodeHtmlEntities(input: string): string {
 /**
  * Pull the full video description from the watch page. Best-effort.
  *
- * YouTube's public SSR HTML embeds it as the `shortDescription` string inside
- * the `ytInitialPlayerResponse` JSON. We regex the JSON-encoded value out and
- * JSON.parse it back to text (handles `\n`, escaped quotes, `\uXXXX`, …).
+ * Primary source: the InnerTube `/player` endpoint (the JSON API behind
+ * YouTube's web client - no API key needed). It returns
+ * `videoDetails.shortDescription`, the untruncated description.
  *
- * Fallback: the `<meta name="description">` tag, which YouTube truncates to a
- * snippet. Any failure returns undefined so callers can skip it gracefully.
+ * Fallback: the watch-page SSR HTML, whose `shortDescription` lives inside the
+ * `ytInitialPlayerResponse` JSON; that page is refused (429 -> google `/sorry`)
+ * from datacenter egress like Cloudflare Workers, so it only helps when the
+ * egress allows it. The `<meta name="description">`/`og:description` tags are
+ * the last-resort snippet.
+ *
+ * Any failure returns undefined so callers can skip it gracefully.
  */
 export async function fetchYouTubeDescription(videoId: string): Promise<string | undefined> {
+  // 1) InnerTube /player - modern, structured, usually allowed.
+  try {
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': YT_WATCH_HEADERS['User-Agent'],
+        'Accept-Language': YT_WATCH_HEADERS['Accept-Language'],
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: { clientName: 'WEB', clientVersion: '2.20251207.01.00' },
+        },
+      }),
+      signal: AbortSignal.timeout(10000),
+    })
+    if (res.ok) {
+      const data = (await res.json().catch(() => null)) as {
+        videoDetails?: { shortDescription?: string }
+      } | null
+      const desc = data?.videoDetails?.shortDescription
+      if (typeof desc === 'string' && desc.trim()) return desc
+    }
+  } catch {
+    // InnerTube refused - fall through to the watch page.
+  }
+
+  // 2) Watch-page SSR HTML scrape (works on egress that YouTube doesn't block).
   try {
     const res = await fetch(
       `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
-      { signal: AbortSignal.timeout(8000) },
+      { signal: AbortSignal.timeout(10000), headers: YT_WATCH_HEADERS },
     )
     if (!res.ok) return undefined
     const html = await res.text()
@@ -130,14 +175,16 @@ export async function fetchYouTubeDescription(videoId: string): Promise<string |
         const decoded = JSON.parse(`"${short[1]}"`) as unknown
         if (typeof decoded === 'string' && decoded.trim()) return decoded
       } catch {
-        // Malformed player JSON — fall through to the meta tag.
+        // Malformed player JSON - fall through to the meta tags.
       }
     }
 
     const meta = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i)
-    if (meta?.[1]) {
-      const decodedMeta = decodeHtmlEntities(meta[1].trim())
-      // Unavailable/unlisted videos fall back to YouTube's generic site blurb —
+    const og = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i)
+    const fallback = meta?.[1] ?? og?.[1]
+    if (fallback) {
+      const decodedMeta = decodeHtmlEntities(fallback.trim())
+      // Unavailable/unlisted videos fall back to YouTube's generic site blurb -
       // skip that junk so we never surface it as a synopsis.
       if (decodedMeta && !decodedMeta.startsWith('Enjoy the videos and music')) {
         return decodedMeta
@@ -154,7 +201,7 @@ export async function fetchYouTubeDescription(videoId: string): Promise<string |
  * Resolve a YouTube URL to full metadata.
  *
  * Throws with a human-readable message when the URL is not a YouTube video.
- * When oEmbed refuses (401/403) the video is not embeddable — we still return
+ * When oEmbed refuses (401/403) the video is not embeddable - we still return
  * metadata with `embeddable: false` so the UI can explain instead of guessing.
  */
 export async function resolveYouTubeMeta(rawUrl: string): Promise<YouTubeMeta> {
@@ -178,10 +225,10 @@ export async function resolveYouTubeMeta(rawUrl: string): Promise<YouTubeMeta> {
       embeddable = false
     }
   } catch {
-    // Network blip — still return best-effort metadata with the ID thumbnail.
+    // Network blip - still return best-effort metadata with the ID thumbnail.
   }
 
-  // Pull the best thumbnail and the full description in parallel — the watch
+  // Pull the best thumbnail and the full description in parallel - the watch
   // page and the thumbnail CDN are independent, so the extra request is free.
   const [thumbnailUrl, description] = await Promise.all([
     pickBestThumbnail(videoId),

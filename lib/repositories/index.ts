@@ -1,5 +1,5 @@
 /**
- * Repository barrel export — import from '@/lib/repositories' to access all repositories.
+ * Repository barrel export - import from '@/lib/repositories' to access all repositories.
  */
 
 export * from './movies'

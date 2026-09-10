@@ -1,5 +1,5 @@
 /**
- * UUID v7 generator — time-sortable, monotonic, collision-resistant.
+ * UUID v7 generator - time-sortable, monotonic, collision-resistant.
  *
  * Format: unix_ts_ms (48 bits) | ver (4) | rand_a (12) | var (2) | rand_b (62)
  * Stored as a 36-char hyphenated string (e.g. "0190c0de-0000-7000-8000-000000000001").

@@ -1,11 +1,11 @@
 /**
  * Watch history endpoints.
  *
- * GET  /api/watch-history  — resume list for the current user
+ * GET  /api/watch-history  - resume list for the current user
  *                            (with ?page=&perPage= a paged window + meta;
  *                            without, the 50-entry resume list client
  *                            stores expect)
- * POST /api/watch-history  — record progress { movieId, progressSeconds, durationSeconds }
+ * POST /api/watch-history  - record progress { movieId, progressSeconds, durationSeconds }
  */
 
 import { handler, ok, Errors } from '@/lib/api/envelope'
@@ -34,7 +34,7 @@ export const GET = handler(async (request: Request) => {
   const user = await requireUser()
   const { searchParams } = new URL(request.url)
 
-  /* Explicit ?page/&perPage → paged window over the full history. */
+  /* Explicit ?page/&perPage -> paged window over the full history. */
   if (searchParams.has('page') || searchParams.has('perPage')) {
     const { page, perPage } = parsePaginationParams(searchParams)
     const { items, total } = await getHistoryPage(user.id, { page, perPage })

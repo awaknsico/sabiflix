@@ -1,12 +1,12 @@
 /**
  * Watchlist endpoints.
  *
- * GET    /api/watchlist  — current user's watchlist
+ * GET    /api/watchlist  - current user's watchlist
  *                           (with ?page=&perPage= a paged window + meta;
  *                           without, the complete list the client-side
  *                           toggle state needs)
- * POST   /api/watchlist  — toggle { movieId } — returns { added: boolean }
- * DELETE /api/watchlist  — remove { movieId }
+ * POST   /api/watchlist  - toggle { movieId } - returns { added: boolean }
+ * DELETE /api/watchlist  - remove { movieId }
  */
 
 import { handler, ok, Errors } from '@/lib/api/envelope'
@@ -27,7 +27,7 @@ export const GET = handler(async (request: Request) => {
   const user = await requireUser()
   const { searchParams } = new URL(request.url)
 
-  /* Explicit ?page/&perPage → paged window. Otherwise return everything:
+  /* Explicit ?page/&perPage -> paged window. Otherwise return everything:
      `useWatchlist` and the homepage context map over all ids for the
      save-toggle state, so the default must stay complete. */
   if (searchParams.has('page') || searchParams.has('perPage')) {

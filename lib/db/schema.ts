@@ -1,5 +1,5 @@
 /**
- * SabiFlix — Drizzle ORM schema for Cloudflare D1 (SQLite dialect).
+ * SabiFlix - Drizzle ORM schema for Cloudflare D1 (SQLite dialect).
  * Mirrors d1/migrations/0001_init.sql
  */
 

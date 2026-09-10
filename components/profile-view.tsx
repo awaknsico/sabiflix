@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -282,14 +282,14 @@ export function ProfileView() {
               Filmmaker access
             </CardTitle>
             <CardDescription>
-              Share your work on SabiFlix — approved filmmakers and curators can submit films for review
+              Share your work on SabiFlix - approved filmmakers and curators can submit films for review
               from the dashboard.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {profile.role === 'creator' || profile.role === 'admin' ? (
               <p className="text-sm text-muted-foreground">
-                You have full access — submit films from the{' '}
+                You have full access - submit films from the{' '}
                 <Link href="/dashboard" className="font-medium text-primary hover:underline">
                   submissions tab
                 </Link>{' '}
@@ -300,7 +300,7 @@ export function ProfileView() {
                 <Badge variant="default" className="mb-1">
                   Approved
                 </Badge>
-                You are an approved filmmaker — submit films from the{' '}
+                You are an approved filmmaker - submit films from the{' '}
                 <Link href="/dashboard" className="font-medium text-primary hover:underline">
                   submissions tab
                 </Link>{' '}
@@ -340,7 +340,7 @@ export function ProfileView() {
                     <Field>
                       <Button type="submit" disabled={appSubmitting}>
                         <Send data-icon="inline-start" />
-                        {appSubmitting ? 'Submitting…' : 'Re-apply for access'}
+                        {appSubmitting ? 'Submitting...' : 'Re-apply for access'}
                       </Button>
                     </Field>
                   </FieldGroup>
@@ -364,7 +364,7 @@ export function ProfileView() {
                   <Field>
                     <Button type="submit" disabled={appSubmitting}>
                       <Send data-icon="inline-start" />
-                      {appSubmitting ? 'Submitting…' : 'Request filmmaker access'}
+                      {appSubmitting ? 'Submitting...' : 'Request filmmaker access'}
                     </Button>
                   </Field>
                 </FieldGroup>

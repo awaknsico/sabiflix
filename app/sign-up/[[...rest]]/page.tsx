@@ -2,7 +2,7 @@ import { SignUp } from '@clerk/nextjs'
 import { AuthShell } from '@/components/auth-shell'
 
 export const metadata = {
-  title: 'Sign up — SabiFlix',
+  title: 'Sign up - SabiFlix',
 }
 
 export const dynamic = 'force-dynamic'

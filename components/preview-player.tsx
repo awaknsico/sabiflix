@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { PlayerDialog } from '@/components/watch-player'
 
 /**
- * "Play preview" — a trailer-length excerpt in the shared distraction-free
+ * "Play preview" - a trailer-length excerpt in the shared distraction-free
  * player. Sits beside the primary "Watch Film" button so a visitor can sample
  * a film without committing to the full run time.
  */
@@ -35,7 +35,7 @@ export function PreviewPlayer({
       <PlayerDialog
         open={open}
         youtubeVideoId={youtubeVideoId}
-        title={`${title} — preview`}
+        title={`${title} - preview`}
         startAt={startSeconds}
         onClose={close}
         caption={`Preview excerpt of ${title}. When you are sold, watch the full film.`}

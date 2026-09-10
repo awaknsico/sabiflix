@@ -22,7 +22,7 @@ export interface ReviewListItem {
 }
 
 /**
- * Paged window over a movie's visible reviews (newest first), 10 per page —
+ * Paged window over a movie's visible reviews (newest first), 10 per page -
  * review threads are read sequentially, so the page size stays small.
  */
 export async function listReviews(

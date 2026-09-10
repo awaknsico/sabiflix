@@ -134,7 +134,7 @@ export default function AdminPlaylistsPage() {
       )))
       setDirty(false)
       toast.success('Playlist saved', {
-        description: `“${playlist.name}” now has ${ordered.length} movie${ordered.length === 1 ? '' : 's'} in this order.`,
+        description: `"${playlist.name}" now has ${ordered.length} movie${ordered.length === 1 ? '' : 's'} in this order.`,
       })
     } catch (error) {
       toast.error('Could not save playlist', {

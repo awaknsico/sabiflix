@@ -7,7 +7,7 @@ import { useHomepageData } from '@/components/homepage/homepage-data-context'
 const KEY = 'sabiflix:last-visit'
 
 /**
- * "New since your last visit" — a quiet editorial pill beside Latest
+ * "New since your last visit" - a quiet editorial pill beside Latest
  * Additions. Compares film createdAt dates against the previous visit stamp
  * in localStorage. First-time visitors see nothing; the stamp updates after
  * the count is computed, so the pill naturally clears on the next visit.

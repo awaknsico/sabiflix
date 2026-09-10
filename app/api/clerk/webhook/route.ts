@@ -1,8 +1,8 @@
 /**
- * Clerk webhook handler — syncs user.create / user.update / user.delete
+ * Clerk webhook handler - syncs user.create / user.update / user.delete
  * to our D1 `users` table so the rest of the app can rely on local user rows.
  *
- * Configure in Clerk Dashboard → Webhooks → Add endpoint:
+ * Configure in Clerk Dashboard -> Webhooks -> Add endpoint:
  *   URL: https://your-domain.com/api/clerk/webhook
  *   Events: user.created, user.updated, user.deleted
  */
@@ -15,10 +15,10 @@ import { eq } from 'drizzle-orm'
 import { syncClerkUser } from '@/lib/api/auth'
 
 /**
- * Clerk webhook handler — syncs user.create / user.update / user.delete
+ * Clerk webhook handler - syncs user.create / user.update / user.delete
  * to our D1 `users` table so the rest of the app can rely on local user rows.
  *
- * Configure in Clerk Dashboard → Webhooks → Add endpoint:
+ * Configure in Clerk Dashboard -> Webhooks -> Add endpoint:
  *   URL: https://your-domain.com/api/clerk/webhook
  *   Events: user.created, user.updated, user.deleted
  */
@@ -30,7 +30,7 @@ const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
 export async function POST(request: Request) {
   if (!webhookSecret) {
     // Dev mode: accept the payload without verification
-    console.warn('[Clerk webhook] CLERK_WEBHOOK_SECRET not set — accepting unsigned payload')
+    console.warn('[Clerk webhook] CLERK_WEBHOOK_SECRET not set - accepting unsigned payload')
   }
 
   const body = await request.text()

@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog'
 
 /**
- * "Can't find it? Ask our curators" — inline request form for catalog
+ * "Can't find it? Ask our curators" - inline request form for catalog
  * dead-ends, so a no-results search becomes an engagement loop instead of a
  * bounce. Mock-persisted, mirroring the dashboard request form.
  */
@@ -31,7 +31,7 @@ export function RequestFilmDialog({ className }: { className?: string }) {
     setOpen(false)
     form.reset()
     toast.success('Film request submitted', {
-      description: `Our curators are on the hunt for “${title}”.`,
+      description: `Our curators are on the hunt for "${title}".`,
     })
   }
 

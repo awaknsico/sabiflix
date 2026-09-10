@@ -2,7 +2,7 @@
  * Public movie catalog endpoints.
  *
  * GET  /api/movies?page=1&perPage=20&category=feature&q=lagos&sort=newest
- * POST /api/movies  (admin only) — create a new movie with its primary source
+ * POST /api/movies  (admin only) - create a new movie with its primary source
  */
 
 import { NextResponse } from 'next/server'

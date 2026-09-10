@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { lookupMovieWithSource } from '@/lib/server-catalog'
 
-export const alt = 'SabiFlix — Curated African Cinema'
+export const alt = 'SabiFlix - Curated African Cinema'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -25,7 +25,7 @@ export default async function OpengraphImage({
   if (movie) {
     try {
       if (/^https?:\/\//.test(movie.posterUrl)) {
-        // Auto-fetched YouTube thumbnails live on i.ytimg.com — pull them
+        // Auto-fetched YouTube thumbnails live on i.ytimg.com - pull them
         // through so the OG card still shows the film's poster art.
         const res = await fetch(movie.posterUrl, { signal: AbortSignal.timeout(8000) })
         if (res.ok) {
@@ -42,7 +42,7 @@ export default async function OpengraphImage({
   }
 
   const meta = movie
-    ? `${categoryLabel[movie.category] ?? movie.category} · ${movie.year} · ${movie.country}`.toUpperCase()
+    ? `${categoryLabel[movie.category] ?? movie.category} * ${movie.year} * ${movie.country}`.toUpperCase()
     : 'CURATED BY HUMANS, NOT ALGORITHMS'.toUpperCase()
 
   return new ImageResponse(
@@ -94,7 +94,7 @@ export default async function OpengraphImage({
               fontWeight: 700,
             }}
           >
-            SABIFLIX · CURATED BY HUMANS
+            SABIFLIX * CURATED BY HUMANS
           </div>
           <div
             style={{

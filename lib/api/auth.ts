@@ -26,7 +26,7 @@ export async function getCurrentUser(): Promise<User | null> {
 
   /*
    * No local `users` row yet. Clerk webhooks only fire for events that happen
-   * after the endpoint is configured — they never backfill existing accounts —
+   * after the endpoint is configured - they never backfill existing accounts -
    * and webhook delivery can lag or fail. A signed-in user can therefore reach
    * /dashboard with a valid session but no local row, which makes every
    * requireUser() endpoint (watchlist, watch-history, submissions, requests)

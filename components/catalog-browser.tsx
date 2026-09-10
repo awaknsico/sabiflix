@@ -30,7 +30,7 @@ const ALL = 'all'
 const PAGE_SIZE = 20
 
 /* Filter option lists. These are editorial constants for the browse UI, not
-   derived from the DB — the catalog itself (movies, search, cast) is served
+   derived from the DB - the catalog itself (movies, search, cast) is served
    by the D1-backed `publishedMovies` prop. */
 const CATEGORIES: { value: MovieCategory; label: string }[] = [
   { value: 'feature', label: 'Feature' },
@@ -93,7 +93,7 @@ export function CatalogBrowser({
   }, [query, category, country, language, publishedMovies])
 
   /* Load-more window: render PAGE_SIZE titles at a time instead of the whole
-     grid — keeps the page light without the friction of numbered pages.
+     grid - keeps the page light without the friction of numbered pages.
      Reset when the filter set changes so a refined search starts at the top. */
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   useEffect(() => {
@@ -247,7 +247,7 @@ export function CatalogBrowser({
         </div>
       )}
 
-      {/* Load more — appends the next window instead of numbered-page jumps,
+      {/* Load more - appends the next window instead of numbered-page jumps,
           so browsing keeps its rhythm (no scroll resets, filters stay live). */}
       {!loading && visibleResults.length < results.length ? (
         <div className="mt-8 flex justify-center">

@@ -1,5 +1,5 @@
 /**
- * Playlist repository — D1 access for playlists + playlist_movies.
+ * Playlist repository - D1 access for playlists + playlist_movies.
  *
  * This is the database source for the homepage hero reel and featured
  * carousels (previously driven by `lib/mock-data.ts`). It avoids the N+1 and

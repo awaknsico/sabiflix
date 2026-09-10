@@ -1,9 +1,9 @@
 /**
  * Notifications endpoints.
  *
- * GET   /api/notifications  — current user's notifications (?page=&perPage=,
+ * GET   /api/notifications  - current user's notifications (?page=&perPage=,
  *                             default 50 per page)
- * PATCH /api/notifications  — mark as read { id } or mark all read
+ * PATCH /api/notifications  - mark as read { id } or mark all read
  */
 
 import { handler, ok } from '@/lib/api/envelope'

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
@@ -6,7 +6,7 @@ import { Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 /**
- * Distraction-free playback dialog — extracted to its own module so the heavy
+ * Distraction-free playback dialog - extracted to its own module so the heavy
  * YouTube IFrame API loader + dialog only download when a visitor actually
  * opens a player. Home/catalog pages never ship it; WatchPlayer's button
  * (and the preview CTA) stay in the static bundle.
@@ -32,7 +32,7 @@ export function WatchPlayer({
   /** Records this playback in watch history (full-film watches only). */
   movieId?: string
   /**
-   * When true the player dialog opens immediately on mount — used by
+   * When true the player dialog opens immediately on mount - used by
    * resume deep links (`?play=1`) so "Resume" skips the details page
    * and serves playback straight away.
    */
@@ -41,7 +41,7 @@ export function WatchPlayer({
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
 
-  // Resume deep link — open playback without requiring another click.
+  // Resume deep link - open playback without requiring another click.
   useEffect(() => {
     if (autoPlay) setOpen(true)
   }, [autoPlay])

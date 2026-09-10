@@ -30,14 +30,14 @@ export async function generateMetadata({
   try {
     const { id } = await params
     const movie = (await lookupMovieWithSource(id))?.movie
-    if (!movie) return { title: 'Film not found — SabiFlix' }
+    if (!movie) return { title: 'Film not found - SabiFlix' }
     return {
-      title: `${movie.title} (${movie.year}) — SabiFlix`,
+      title: `${movie.title} (${movie.year}) - SabiFlix`,
       description: movie.synopsis,
     }
   } catch (e) {
     console.error('[generateMetadata] movie page error:', e)
-    return { title: 'Film not found — SabiFlix' }
+    return { title: 'Film not found - SabiFlix' }
   }
 }
 
@@ -64,7 +64,7 @@ export default async function MovieDetailPage({
   const parsedT = Number(t)
   const startAt = Number.isFinite(parsedT) && parsedT > 0 ? Math.floor(parsedT) : 0
 
-  /* `?play=1` resume links skip the details page — the player dialog opens
+  /* `?play=1` resume links skip the details page - the player dialog opens
    * immediately on mount and serves playback straight away. */
   const autoPlay = play === '1'
 
@@ -87,7 +87,7 @@ export default async function MovieDetailPage({
     .slice(0, 5)
     .map((r) => r.movie)
 
-  /* Editorial heading — lean into the strongest shared attribute. */
+  /* Editorial heading - lean into the strongest shared attribute. */
   const relatedHeading =
     related.length > 0 && related.every((m) => m.country === movie.country)
       ? `More from ${movie.country}`
@@ -224,7 +224,7 @@ export default async function MovieDetailPage({
           </div>
         </div>
 
-        {/* Related — actor-aware picks, history-aware once the store hydrates */}
+        {/* Related - actor-aware picks, history-aware once the store hydrates */}
         {related.length > 0 ? (
           <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
             <RelatedFilms movie={movie} fallback={related} fallbackHeading={relatedHeading} catalog={allActive} />

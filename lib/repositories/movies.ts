@@ -1,5 +1,5 @@
 /**
- * Movie repository — all D1/SQLite access for movies and sources.
+ * Movie repository - all D1/SQLite access for movies and sources.
  */
 
 import { getDB } from '@/lib/db/client'
@@ -32,9 +32,9 @@ export interface MovieDetail {
   createdAt: number; updatedAt: number; sources: MovieSource[]
 }
 
-/** Input type for movie create/update — accepts JS arrays for JSON columns. */
+/** Input type for movie create/update - accepts JS arrays for JSON columns. */
 export interface MovieInput {
-  /** Client-supplied id (e.g. to preserve a `mov-pub-…` slug). When absent, createMovie generates a UUID. */
+  /** Client-supplied id (e.g. to preserve a `mov-pub-...` slug). When absent, createMovie generates a UUID. */
   id?: string
   title?: string
   alternativeTitles?: string[] | string
@@ -151,12 +151,12 @@ export async function getMovieById(id: string): Promise<MovieDetail | null> {
  * queries (movies + sources) instead of the previous N+1 pattern (1 list +
  * per-movie detail fetch). `getPublishedEntries()` renders the full catalog
  * on every film page for the related section, so a 100+ row N+1 over the
- * D1 HTTP bridge was blowing the Worker CPU time budget → 503 responses.
+ * D1 HTTP bridge was blowing the Worker CPU time budget -> 503 responses.
  *
  * The sources query filters with a correlated `IN (SELECT id FROM movies
- * WHERE is_active = 1)` subquery instead of `IN (?, ?, …)` over every movie id:
+ * WHERE is_active = 1)` subquery instead of `IN (?, ?, ...)` over every movie id:
  * Cloudflare D1 rejects statements with more than 100 bound variables
- * ("too many SQL variables … SQLITE_ERROR"), and the live catalog already
+ * ("too many SQL variables ... SQLITE_ERROR"), and the live catalog already
  * exceeds that. A subquery keeps the exact same semantics with one bind
  * parameter, so it scales to any catalog size without hitting the limit.
  */
@@ -310,7 +310,7 @@ export async function softDeleteMovie(id: string): Promise<boolean> {
 }
 
 /**
- * Fast title → catalog search for the header / global search box.
+ * Fast title -> catalog search for the header / global search box.
  * Matches title, alternative titles, synopsis, actors (JSON string) and
  * country/language (the actor match replaces the old client-side `movieCast`
  * index). Returns at most `limit` active movies, newest first.

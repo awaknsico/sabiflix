@@ -34,7 +34,7 @@ export function useYouTubeMeta(url: string, { enabled = true }: { enabled?: bool
         const data = (await res.json()) as {
           ok?: boolean
           error?: string
-          /** The API wraps every payload in an envelope — the metadata lives here. */
+          /** The API wraps every payload in an envelope - the metadata lives here. */
           data?: YouTubeMeta
         }
         if (cancelled) return

@@ -91,7 +91,7 @@ export default function AdminSubmissionsPage() {
               status,
               adminNotes:
                 status === 'approved'
-                  ? 'Meets curation guidelines — scheduled for the catalog.'
+                  ? 'Meets curation guidelines - scheduled for the catalog.'
                   : 'Needs a cleaner master before we can feature it.',
             }
           : sub,
@@ -107,7 +107,7 @@ export default function AdminSubmissionsPage() {
         status,
         adminNotes:
           status === 'approved'
-            ? 'Meets curation guidelines — scheduled for the catalog.'
+            ? 'Meets curation guidelines - scheduled for the catalog.'
             : 'Needs a cleaner master before we can feature it.',
       }),
     }).catch(() =>
@@ -198,7 +198,7 @@ export default function AdminSubmissionsPage() {
         {
           description: failed
             ? `${failed} ${failed === 1 ? 'URL could' : 'URLs could'} not be resolved.`
-            : 'All ready for review — metadata was auto-filled.',
+            : 'All ready for review - metadata was auto-filled.',
         },
       )
     } catch {
@@ -228,7 +228,7 @@ export default function AdminSubmissionsPage() {
       <div className="mt-8">
         {loading ? (
           <p className="text-sm text-muted-foreground" aria-live="polite">
-            Loading submissions…
+            Loading submissions...
           </p>
         ) : subs.length === 0 ? (
           <Empty className="border py-16">
@@ -251,7 +251,7 @@ export default function AdminSubmissionsPage() {
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate font-medium">{sub.title}</span>
                       <span className="text-xs text-muted-foreground">
-                        {sub.userDisplayName} · {formatDate(sub.submittedAt)}
+                        {sub.userDisplayName} * {formatDate(sub.submittedAt)}
                       </span>
                     </div>
                     <Badge variant={statusVariant[sub.status]} className="capitalize">
@@ -272,7 +272,7 @@ export default function AdminSubmissionsPage() {
                     </div>
                   ) : (
                     <div className="flex aspect-video items-center justify-center rounded-lg border border-border/60 bg-muted text-sm text-muted-foreground">
-                      Preview unavailable — add a resolvable YouTube URL
+                      Preview unavailable - add a resolvable YouTube URL
                     </div>
                   )}
 
@@ -290,7 +290,7 @@ export default function AdminSubmissionsPage() {
                       render={<Link href={`/movie/${sub.publishedMovieId}`} />}
                     >
                       <ExternalLink data-icon="inline-start" />
-                      Published — view film page
+                      Published - view film page
                     </Button>
                   ) : null}
 
@@ -373,7 +373,7 @@ export default function AdminSubmissionsPage() {
             </Button>
             <Button onClick={importUrls} disabled={importing || !importText.trim()}>
               <ListPlus data-icon="inline-start" />
-              {importing ? 'Resolving…' : 'Import'}
+              {importing ? 'Resolving...' : 'Import'}
             </Button>
           </DialogFooter>
         </DialogContent>

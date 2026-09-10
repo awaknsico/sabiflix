@@ -165,7 +165,7 @@ export function SiteHeader() {
           })}
         </nav>
 
-        {/* Live search — instant, keyboard-navigable results (MovieBoxHD live panel) */}
+        {/* Live search - instant, keyboard-navigable results (MovieBoxHD live panel) */}
         <div
           className="relative ml-auto w-full max-w-xs sm:max-w-sm"
           onBlur={(event) => {

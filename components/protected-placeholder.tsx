@@ -14,7 +14,7 @@ import {
 
 /**
  * Sign-in prompt shown when an unauthenticated visitor opens a protected area.
- * Real auth is Clerk-backed (see proxy.ts) — this is purely the fallback UI.
+ * Real auth is Clerk-backed (see proxy.ts) - this is purely the fallback UI.
  */
 export function ProtectedPlaceholder({ area }: { area: string }) {
   return (
@@ -26,7 +26,7 @@ export function ProtectedPlaceholder({ area }: { area: string }) {
           </EmptyMedia>
           <EmptyTitle>Sign in to view {area}</EmptyTitle>
           <EmptyDescription>
-            This is a protected area. Sign in to continue — it only takes a moment.
+            This is a protected area. Sign in to continue - it only takes a moment.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

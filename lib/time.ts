@@ -1,5 +1,5 @@
 /**
- * UTC time helpers — all timestamps are stored as unix-epoch SECONDS (INTEGER) in D1
+ * UTC time helpers - all timestamps are stored as unix-epoch SECONDS (INTEGER) in D1
  * and as ISO-8601 strings at API boundaries.
  */
 

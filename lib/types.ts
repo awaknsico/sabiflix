@@ -3,7 +3,7 @@
  *
  * These used to live in `lib/mock-data.ts` alongside the prototype seed data.
  * Now that the app reads from Cloudflare D1, the types are the ONLY thing the
- * UI still shares across pages/components — so they get a neutral home here,
+ * UI still shares across pages/components - so they get a neutral home here,
  * decoupled from any dummy-data file.
  *
  * The runtime shapes mirror the Drizzle schema in `lib/db/schema.ts` (D1/SQLite).
@@ -34,7 +34,7 @@ export interface Movie {
   id: string
   title: string
   alternativeTitles: string[]
-  /** Lead actors — up to 2 shown on the card, full list available on the film page. */
+  /** Lead actors - up to 2 shown on the card, full list available on the film page. */
   actors: string[]
   year: number
   country: string
@@ -45,10 +45,10 @@ export interface Movie {
   isActive: boolean
   /**
    * Provenance badge shown on the card.
-   * - 'admin'      → gold Curator's Mark (personally screened by a moderator)
-   * - 'requested'  → cyan Community Mark (added because users asked for it)
-   * - 'filmmaker'  → green Filmmaker Mark (submitted directly by the creator)
-   * - undefined    → no badge (standard catalog entry)
+   * - 'admin'      -> gold Curator's Mark (personally screened by a moderator)
+   * - 'requested'  -> cyan Community Mark (added because users asked for it)
+   * - 'filmmaker'  -> green Filmmaker Mark (submitted directly by the creator)
+   * - undefined    -> no badge (standard catalog entry)
    */
   curationType?: 'admin' | 'requested' | 'filmmaker'
   createdAt: string
@@ -68,7 +68,7 @@ export interface MovieSource {
 }
 
 /**
- * Lean card projection — everything a poster card / rail needs, nothing more.
+ * Lean card projection - everything a poster card / rail needs, nothing more.
  *
  * The homepage passes this (not the full `Movie`) to all 7 client sections,
  * which is what shrinks the RSC flight payload from ~285KB toward <90KB:
@@ -86,7 +86,7 @@ export interface MovieCardDto {
   country: string
   language: string
   category: MovieCategory
-  /** Lead actors — small array shown on the card. */
+  /** Lead actors - small array shown on the card. */
   actors: string[]
   curationType?: Movie['curationType']
   createdAt: string
@@ -108,7 +108,7 @@ export function toCardDto(m: Movie): MovieCardDto {
   }
 }
 
-/** Newest-first active films, capped — drives "Latest Additions" style rails. */
+/** Newest-first active films, capped - drives "Latest Additions" style rails. */
 export function sortLatest<T extends Pick<MovieCardDto, 'createdAt'>>(movies: readonly T[], limit = 10): T[] {
   return [...movies].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, limit)
 }
@@ -122,7 +122,7 @@ export interface PlaylistWithMovies {
 }
 
 /**
- * Lean playlist projection — same shape, card DTOs instead of full movies.
+ * Lean playlist projection - same shape, card DTOs instead of full movies.
  * The homepage hydrates carousels from these so playlist rails share the
  * shrunken payload instead of duplicating full `Movie` objects per rail.
  */
@@ -142,7 +142,7 @@ export interface WatchHistoryEntry {
   durationSeconds: number
   /** Set once the viewer has finished (completion / mark-as-finished). */
   completedAt?: string | null
-  /** Last playback activity — drives resume order and "watched this week". */
+  /** Last playback activity - drives resume order and "watched this week". */
   updatedAt?: string
 }
 

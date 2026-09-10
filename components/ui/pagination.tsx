@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 /**
  * Shared pagination controls.
  *
- * `TablePagination` serves the admin queue/table pages: a "Showing X–Y of Z"
+ * `TablePagination` serves the admin queue/table pages: a "Showing X-Y of Z"
  * summary, prev/next arrows, and numbered pages with ellipsis. Page state is
  * held by the caller (server-paginated fetches); the component is purely
  * presentational aside from the summary line's `aria-live` announcement.
@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 const SIBLING_COUNT = 1
 
 /**
- * Compact page list with ellipses, e.g. [1, '…', 4, 5, 6, '…', 20].
+ * Compact page list with ellipses, e.g. [1, '...', 4, 5, 6, '...', 20].
  * Returns every page when they all fit.
  */
 function getPageRange(

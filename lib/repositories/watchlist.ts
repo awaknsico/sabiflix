@@ -77,7 +77,7 @@ export async function toggleWatchlist(userId: string, movieId: string): Promise<
       .where(and(eq(watchlist.userId, userId), eq(watchlist.movieId, movieId)))
     return false
   }
-  // watchlist uses a composite primary key (user_id, movie_id) — no separate id column
+  // watchlist uses a composite primary key (user_id, movie_id) - no separate id column
   await d.insert(watchlist).values({
     userId, movieId, createdAt: nowEpoch(),
   })

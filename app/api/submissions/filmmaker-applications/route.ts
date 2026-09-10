@@ -1,8 +1,8 @@
 /**
  * User-facing filmmaker access application endpoints.
  *
- * GET    /api/submissions/filmmaker-applications        — current user's application (if any)
- * POST   /api/submissions/filmmaker-applications        — submit / resubmit an application
+ * GET    /api/submissions/filmmaker-applications        - current user's application (if any)
+ * POST   /api/submissions/filmmaker-applications        - submit / resubmit an application
  */
 
 import { handler, ok, Errors } from '@/lib/api/envelope'

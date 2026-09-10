@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'SabiFlix — Curated African Cinema',
+    name: 'SabiFlix - Curated African Cinema',
     short_name: 'SabiFlix',
     description:
       'A distraction-free streaming platform for Nollywood, African films, short films, and documentaries. Curated by humans.',

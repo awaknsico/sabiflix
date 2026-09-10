@@ -1,8 +1,8 @@
 /**
  * Reviews endpoints.
  *
- * GET  /api/reviews?movieId=xxx  — list visible reviews for a movie
- * POST /api/reviews               — create/update a review (auth required)
+ * GET  /api/reviews?movieId=xxx  - list visible reviews for a movie
+ * POST /api/reviews               - create/update a review (auth required)
  */
 
 import { handler, ok, Errors } from '@/lib/api/envelope'

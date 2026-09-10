@@ -8,9 +8,9 @@ import { recommendFor, useWatchHistory } from '@/lib/watch-history'
 /**
  * History-aware related picks for the film page. Once the watch-history store
  * hydrates, the section is computed from the shared-attribute blend (actors
- * heaviest) with already-watched titles excluded; until then — and whenever
- * the blend comes up empty — the server's fallback list renders unchanged.
- * Headings stay editorial ("More films starring…"), never algorithm language.
+ * heaviest) with already-watched titles excluded; until then - and whenever
+ * the blend comes up empty - the server's fallback list renders unchanged.
+ * Headings stay editorial ("More films starring..."), never algorithm language.
  */
 export function RelatedFilms({
   movie,

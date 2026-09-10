@@ -6,7 +6,7 @@ import { MovieCardSkeleton } from '@/components/movie-card'
 import { getPublishedEntries } from '@/lib/server-catalog'
 
 export const metadata = {
-  title: 'Catalog — SabiFlix',
+  title: 'Catalog - SabiFlix',
   description: 'Browse curated Nollywood, African films, short films, and documentaries.',
 }
 

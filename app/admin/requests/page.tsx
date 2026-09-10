@@ -95,7 +95,7 @@ export default function AdminRequestsPage() {
     const linked = movieOptions.find((m) => m.id === patch.fulfilledByMovieId)
     setReqs((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
     toast.success(successMessage, {
-      description: patch.status === 'found' && linked ? `Linked to “${linked.title}” in the catalog.` : undefined,
+      description: patch.status === 'found' && linked ? `Linked to "${linked.title}" in the catalog.` : undefined,
     })
     setSavingId(id)
     fetch(`/api/requests/${id}`, {
@@ -130,7 +130,7 @@ export default function AdminRequestsPage() {
       <div className="flex flex-col gap-1">
         <h1 className="font-serif text-3xl font-bold tracking-tight">Requests</h1>
         <p className="text-muted-foreground">
-          Community film requests — when you source a title, mark it found and link it to the
+          Community film requests - when you source a title, mark it found and link it to the
           catalog entry.
         </p>
       </div>
@@ -138,7 +138,7 @@ export default function AdminRequestsPage() {
       <div className="mt-8">
         {loading ? (
           <p className="text-sm text-muted-foreground" aria-live="polite">
-            Loading requests…
+            Loading requests...
           </p>
         ) : reqs.length === 0 ? (
           <Empty className="border py-16">
@@ -159,7 +159,7 @@ export default function AdminRequestsPage() {
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate font-medium">{req.requestedTitle}</span>
                       <span className="text-xs text-muted-foreground">
-                        {req.userDisplayName ?? 'Unknown viewer'} · Requested{' '}
+                        {req.userDisplayName ?? 'Unknown viewer'} * Requested{' '}
                         {formatDate(req.requestedAt)}
                       </span>
                     </div>
@@ -178,13 +178,13 @@ export default function AdminRequestsPage() {
                         }}
                       >
                         <SelectTrigger className="w-full sm:w-64" aria-label="Link to a movie">
-                          <SelectValue placeholder="Link to a movie…" />
+                          <SelectValue placeholder="Link to a movie..." />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
                             {movieOptions.map((m) => (
                               <SelectItem key={m.id} value={m.id}>
-                                {m.title} ({m.year ?? '—'})
+                                {m.title} ({m.year ?? '-'})
                               </SelectItem>
                             ))}
                           </SelectGroup>

@@ -2,7 +2,7 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 
 /**
- * SabiFlix brand kit — "woven motion".
+ * SabiFlix brand kit - "woven motion".
  *
  * The symbol is an S built from two organic orange petals with a dark film
  * ribbon woven diagonally between them (sprocket dashes on the upper edge).
@@ -39,7 +39,7 @@ export function SabiflixWordmark({ className }: { className?: string }) {
   return <Image src="/brand/source/logo-wordmark.png" alt="" width={2031} height={774} className={cn('h-5 w-auto', className)} />
 }
 
-/** Full lockup — symbol + wordmark. Wrap in a Link/navigation as needed. */
+/** Full lockup - symbol + wordmark. Wrap in a Link/navigation as needed. */
 export function SabiflixLogo({
   className,
   symbolClassName,

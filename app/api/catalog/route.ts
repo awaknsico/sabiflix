@@ -12,9 +12,9 @@ import type { Movie, MovieCategory, MovieSource } from '@/lib/types'
  * Admin console publish/read/delete for the published catalog.
  * Films written here get a real, navigable `/movie/<id>` page from D1.
  *
- * GET  /api/catalog — public: list published catalog
- * POST /api/catalog — admin only: publish a film
- * DELETE /api/catalog?id=xxx — admin only: remove a published film
+ * GET  /api/catalog - public: list published catalog
+ * POST /api/catalog - admin only: publish a film
+ * DELETE /api/catalog?id=xxx - admin only: remove a published film
  */
 
 export const runtime = 'nodejs'
@@ -30,7 +30,7 @@ export const GET = handler(async (request: Request) => {
     movies: entries.map((e) => e.movie),
     sources: entries.map((e) => e.source),
   })
-  // Public catalog is immutable-ish — edge-cache it hard. CDN caches for 5 min,
+  // Public catalog is immutable-ish - edge-cache it hard. CDN caches for 5 min,
   // serves stale while it refreshes for up to a day (poor-network friendly).
   res.headers.set(
     'Cache-Control',

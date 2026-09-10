@@ -12,7 +12,7 @@ import { submissionReviewSchema } from '@/lib/validations'
 /**
  * Admin submission review endpoints.
  *
- * PATCH  /api/admin/submissions/:id  — approve or reject a submission
+ * PATCH  /api/admin/submissions/:id  - approve or reject a submission
  *    ({ action: 'notes', adminNotes }) sets admin notes
  *    ({ action: 'publish', ...source }) publishes a submission as a movie
  */

@@ -25,7 +25,7 @@ function isTouchMobile(): boolean {
   if (typeof window === 'undefined') return false
   if (/Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent)) return true
   // Coarse-pointer devices (touch-only phones/tablets) tend to stream over
-  // cellular — keep the quiet static poster for them.
+  // cellular - keep the quiet static poster for them.
   return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
 }
 
@@ -34,9 +34,9 @@ function isTouchMobile(): boolean {
  *
  * When the environment is eligible (no reduced motion, no save-data, not a
  * coarse-pointer mobile, backdrop in view, tab visible) a muted 90-second loop
- * from the film plays behind the existing scrims — motion as décor, never an
+ * from the film plays behind the existing scrims - motion as decor, never an
  * interruption. Everyone else gets the calm static poster treatment. The glass
- * "Preview · muted loop" pill is the tap-for-sound path into the shared
+ * "Preview * muted loop" pill is the tap-for-sound path into the shared
  * distraction-free player.
  */
 export function MoviePreview({
@@ -83,7 +83,7 @@ export function MoviePreview({
     }
   }, [])
 
-  // Pause the ambient loop when it scrolls out of view…
+  // Pause the ambient loop when it scrolls out of view...
   useEffect(() => {
     const el = wrapRef.current
     if (!el || typeof IntersectionObserver === 'undefined') return
@@ -98,7 +98,7 @@ export function MoviePreview({
     return () => io.disconnect()
   }, [])
 
-  // …and when the tab is hidden.
+  // ...and when the tab is hidden.
   useEffect(() => {
     function onVisibilityChange() {
       setPageVisible(document.visibilityState === 'visible')
@@ -126,7 +126,7 @@ export function MoviePreview({
         />
       ) : null}
 
-      {/* Static poster treatment — the calm default, and the underlay while the loop loads. */}
+      {/* Static poster treatment - the calm default, and the underlay while the loop loads. */}
       <Image
         src={posterUrl || '/placeholder.svg'}
         alt=""
@@ -147,14 +147,14 @@ export function MoviePreview({
           aria-label={`Show preview of ${title} with sound`}
         >
           <VolumeX className="size-3.5" />
-          Preview{playing ? ' · muted loop' : ''}
+          Preview{playing ? ' * muted loop' : ''}
         </button>
       ) : null}
 
       <PlayerDialog
         open={dialogOpen}
         youtubeVideoId={videoId}
-        title={`${title} — preview`}
+        title={`${title} - preview`}
         startAt={startSeconds}
         onClose={closeDialog}
         caption={`Preview excerpt of ${title}. Close to continue browsing.`}

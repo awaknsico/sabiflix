@@ -61,7 +61,7 @@ function DialogContent({
         {/*
           The scroll area owns the old padding/grid/gap. Without it, a dialog
           taller than the viewport grew past both screen edges (the popup is
-          center-anchored) with no scrollbar anywhere — freezing the footer
+          center-anchored) with no scrollbar anywhere - freezing the footer
           buttons out of reach. `min-h-0` is what lets the flex child actually
           shrink to the capped height instead of forcing the popup taller.
         */}

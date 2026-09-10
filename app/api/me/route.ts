@@ -1,5 +1,5 @@
 /**
- * Current authenticated user — used by client shells to gate on the real
+ * Current authenticated user - used by client shells to gate on the real
  * DB-backed role (Clerk only knows identity; roles live in our database).
  *
  * GET /api/me

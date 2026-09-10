@@ -24,7 +24,7 @@ export type { PlaylistWithMovies }
  *
  * The seed movies shipped with the repo are imported into D1 through the local
  * seed script or `wrangler d1 execute`, so every read here is
- * database-driven — there is no bundled mock-catalog fallback anymore.
+ * database-driven - there is no bundled mock-catalog fallback anymore.
  */
 
 export interface PublishedEntry {
@@ -126,12 +126,12 @@ function toMovieInput(movie: Movie, source?: MovieSource): MovieInput {
 /** All non-deleted movies currently in D1 (the canonical published store). */
 export async function getPublishedEntries(): Promise<PublishedEntry[]> {
   try {
-    // Batch-loaded in two queries — avoids the N+1 pattern that previously
+    // Batch-loaded in two queries - avoids the N+1 pattern that previously
     // did one detail fetch per movie and blew the Worker CPU budget.
     const details = await listMovieDetails()
     return details.map((d) => toEntry(d))
   } catch (err) {
-    // No database provisioned yet — healthy empty set; seed still renders.
+    // No database provisioned yet - healthy empty set; seed still renders.
     console.error('[getPublishedEntries] failed:', err)
     return []
   }
@@ -144,7 +144,7 @@ export async function findPublishedEntry(id: string): Promise<PublishedEntry | u
 
 /**
  * Look up a film in the D1 published store and return its `Movie` + primary
- * source (when present). D1-only — no mock fallback.
+ * source (when present). D1-only - no mock fallback.
  */
 export async function lookupMovieWithSource(
   id: string,
@@ -158,7 +158,7 @@ export async function lookupMovieWithSource(
   }
 }
 
-/** Common resolver — maps playlist rows to PlaylistWithMovies using published movies. */
+/** Common resolver - maps playlist rows to PlaylistWithMovies using published movies. */
 async function hydratePlaylists(
   rows: Awaited<ReturnType<typeof listPlaylists>>,
   entries: PublishedEntry[],
@@ -175,7 +175,7 @@ async function hydratePlaylists(
   }))
 }
 
-/** Featured (curator) playlists with their movies — drives the homepage hero + rows. */
+/** Featured (curator) playlists with their movies - drives the homepage hero + rows. */
 export async function getFeaturedPlaylists(
   entries?: PublishedEntry[],
 ): Promise<PlaylistWithMovies[]> {
@@ -189,7 +189,7 @@ export async function getFeaturedPlaylists(
   }
 }
 
-/** All playlists with their movies — used by the admin playlists console. */
+/** All playlists with their movies - used by the admin playlists console. */
 export async function getAllPlaylists(
   entries?: PublishedEntry[],
 ): Promise<PlaylistWithMovies[]> {

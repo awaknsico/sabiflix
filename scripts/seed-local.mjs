@@ -2,7 +2,7 @@
  * Seed the local SQLite database (dev fallback) from the D1 migration + seed SQL.
  * Run: npm run db:seed:local
  *
- * Uses @libsql/client — the same driver the app uses at runtime
+ * Uses @libsql/client - the same driver the app uses at runtime
  * (lib/db/client.ts), with prebuilt binaries and no native compilation.
  * For remote D1, use: wrangler d1 execute sabiflix --file=d1/seed.sql
  */
@@ -110,7 +110,7 @@ async function runFile(client, path, label) {
       await client.execute({ sql: stmt })
       ok++
     } catch (err) {
-      console.log(`  [skip] ${err.message} — ${stmt.slice(0, 90)}`)
+      console.log(`  [skip] ${err.message} - ${stmt.slice(0, 90)}`)
     }
   }
   console.log(`${label}: applied ${ok}/${stmts.length} statements`)

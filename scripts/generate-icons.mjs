@@ -1,16 +1,16 @@
 /**
- * SabiFlix brand icon generator — rasterizes the "woven motion" symbol to PNG
+ * SabiFlix brand icon generator - rasterizes the "woven motion" symbol to PNG
  * with zero dependencies (pure Node: zlib + hand-rolled PNG encoder).
  *
  * Outputs:
- *   public/apple-icon.png       180×180 — charcoal rounded tile + symbol
- *   public/icon-dark-32x32.png  32×32   — symbol on transparent
- *   public/icon-light-32x32.png 32×32   — symbol on transparent
+ *   public/apple-icon.png       180x180 - charcoal rounded tile + symbol
+ *   public/icon-dark-32x32.png  32x32   - symbol on transparent
+ *   public/icon-light-32x32.png 32x32   - symbol on transparent
  *
  * Run: node scripts/generate-icons.mjs
  *
  * The geometry mirrors components/brand/sabiflix-logo.tsx and public/icon.svg:
- * two organic petals (cubic béziers) + a film ribbon rotated -33° with cream
+ * two organic petals (cubic beziers) + a film ribbon rotated -33deg with cream
  * underlay and sprocket dashes. Colors: orange #F2921D, charcoal #2B2A27,
  * cream #F5F1EA.
  */
@@ -64,7 +64,7 @@ function encodePNG(width, height, rgba) {
   ])
 }
 
-/* ---------------- Brand geometry (100×100 symbol space) ---------------- */
+/* ---------------- Brand geometry (100x100 symbol space) ---------------- */
 
 const hex = (h) => [
   parseInt(h.slice(1, 3), 16),
@@ -76,7 +76,7 @@ const DARK = hex('#2B2A27')
 const CREAM = hex('#F5F1EA')
 const DASH = hex('#FAF7F1')
 
-// Flatten the petal's four cubic béziers into a polygon.
+// Flatten the petal's four cubic beziers into a polygon.
 const petal = []
 function pushCubic(p0, c1, c2, p1, steps = 24) {
   for (let i = 1; i <= steps; i++) {
@@ -105,7 +105,7 @@ function inPetal(x, y) {
   }
   return inside
 }
-/** Top petal = the same shape rotated 180° about (50,50). */
+/** Top petal = the same shape rotated 180deg about (50,50). */
 function inTopPetal(x, y) {
   return inPetal(100 - x, 100 - y)
 }
@@ -116,8 +116,8 @@ const RIBBON_C = Math.cos((33 * Math.PI) / 180) // 0.8387
 const RIBBON_S = Math.sin((33 * Math.PI) / 180) // 0.5446
 /**
  * Map a final point into the ribbon group's unrotated frame.
- * The group is rotated by -33°, so the inverse is a +33° rotation:
- * [cos -sin; sin +cos] with θ=+33°.
+ * The group is rotated by -33deg, so the inverse is a +33deg rotation:
+ * [cos -sin; sin +cos] with theta=+33deg.
  */
 function toRibbonFrame(x, y) {
   const dx = x - 50
@@ -184,7 +184,7 @@ function render(size, compose) {
 
 /**
  * Render a symbol sized as `spanFraction` of the canvas.
- * The symbol occupies the full 100×100 box, so scale k = span/100.
+ * The symbol occupies the full 100x100 box, so scale k = span/100.
  */
 function symbolTransform(size, spanFraction) {
   const span = size * spanFraction

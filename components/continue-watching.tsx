@@ -18,7 +18,7 @@ function formatDuration(totalSeconds: number) {
 }
 
 /**
- * "Pick up where you left off" — the quiet return-rate row. Reads live watch
+ * "Pick up where you left off" - the quiet return-rate row. Reads live watch
  * history and links straight into the player at the saved position (`?t=`).
  *
  * Uses shared homepage data (history + card projections) to avoid duplicate
@@ -65,7 +65,7 @@ export function ContinueWatching() {
               )}
             >
               <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#1C1E24]">
-                {/* Dismiss — remove from history without leaving the page */}
+                {/* Dismiss - remove from history without leaving the page */}
                 <button
                   type="button"
                   aria-label={`Remove ${movie.title} from watch history`}
@@ -86,13 +86,13 @@ export function ContinueWatching() {
                   className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0A0B0F]/95 via-[#0A0B0F]/10 to-transparent" />
-                {/* Resume pill — revealed on hover (matches MovieCard Watch pill) */}
+                {/* Resume pill - revealed on hover (matches MovieCard Watch pill) */}
                 <div className="absolute inset-x-0 bottom-0 flex translate-y-2 items-center justify-center pb-3 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-ember px-3.5 py-1.5 text-xs font-semibold text-[#14150E] shadow-[0_0_20px_rgba(242,146,29,0.35)]">
                     Resume
                   </span>
                 </div>
-                {/* Saved position — ember progress line on the poster's bottom edge */}
+                {/* Saved position - ember progress line on the poster's bottom edge */}
                 <div className="absolute inset-x-0 bottom-0 h-1 bg-white/15">
                   <div className="h-full bg-ember" style={{ width: `${pct}%` }} />
                 </div>

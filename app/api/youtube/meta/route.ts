@@ -5,8 +5,8 @@ import { resolveYouTubeMeta } from '@/lib/youtube'
 /**
  * YouTube metadata resolution endpoints.
  *
- * GET  /api/youtube/meta?url=<encoded>  — resolve single URL
- * POST /api/youtube/meta                — batch resolve { urls: string[] }
+ * GET  /api/youtube/meta?url=<encoded>  - resolve single URL
+ * POST /api/youtube/meta                - batch resolve { urls: string[] }
  */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

@@ -29,7 +29,7 @@ const HomepageDataContext = createContext<HomepageData>({
 interface HomepageDataProviderProps {
   children: ReactNode
   movieIds: string[]
-  /** Lean card projections — serialized ONCE for the whole page. */
+  /** Lean card projections - serialized ONCE for the whole page. */
   cards: MovieCardDto[]
   /**
    * When false the provider never fetches (signed-out visitors hit 401 on
@@ -39,7 +39,7 @@ interface HomepageDataProviderProps {
 }
 
 /**
- * Homepage data provider — fetches watch history and watchlist ONCE
+ * Homepage data provider - fetches watch history and watchlist ONCE
  * and shares them across all homepage components.
  *
  * This eliminates duplicate API calls when multiple components
@@ -50,7 +50,7 @@ export function HomepageDataProvider({ children, movieIds, cards, enabled = true
   const [ready, setReady] = useState(!enabled)
   const cardsById = useMemo(() => new Map(cards.map((m) => [m.id, m] as const)), [cards])
 
-  /* Shared watchlist store — ONE fetch serves this provider and every
+  /* Shared watchlist store - ONE fetch serves this provider and every
      per-card save toggle on the page (previously one request per card). */
   const { ids: watchlistIds, ready: watchlistReady } = useWatchlist()
 
@@ -64,7 +64,7 @@ export function HomepageDataProvider({ children, movieIds, cards, enabled = true
         if (cancelled) return
         if (data.ok && data.data?.items) {
           // Server completedAt is the source of truth (survives heartbeats
-          // that omit durationSeconds). Fall back to the ≥95% ratio only for
+          // that omit durationSeconds). Fall back to the >=95% ratio only for
           // legacy rows that predate server completion.
           const items: WatchHistoryItem[] = data.data.items.map((item: any) => {
             const updatedAt = new Date(item.updatedAt * 1000).toISOString()

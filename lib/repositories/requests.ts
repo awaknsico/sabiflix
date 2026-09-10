@@ -13,7 +13,7 @@ function db() { return getDB() }
 export type FilmRequestRow = FilmRequest & { userDisplayName: string | null }
 
 /**
- * List requests — non-admins only see their own. Paged window of the
+ * List requests - non-admins only see their own. Paged window of the
  * newest-first stream with a total count for the pagination controls.
  */
 export async function listRequests(

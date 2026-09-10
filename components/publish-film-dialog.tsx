@@ -43,7 +43,7 @@ function metaUrl(videoId: string): string {
 
 /**
  * "Review & publish" dialog. Everything the film needs is prefilled from the
- * auto-resolved YouTube metadata — the curator just confirms the details and
+ * auto-resolved YouTube metadata - the curator just confirms the details and
  * picks the poster frame. Publishing writes through to the server catalog so
  * the film immediately gets a real `/movie/<id>` page.
  */
@@ -80,7 +80,7 @@ export function PublishFilmDialog({
 
   /**
    * Resolve the video's metadata (full description + channel) and fill the
-   * synopsis. `replace` is true for the manual "Pull from YouTube" button —
+   * synopsis. `replace` is true for the manual "Pull from YouTube" button -
    * the curator clicked it, so overwriting their draft is expected. The
    * automatic fetch only fills an empty synopsis and never clobbers a draft.
    */
@@ -105,7 +105,7 @@ export function PublishFilmDialog({
         setSynopsis((prev) => (replace || !prev.trim() ? fetched : prev))
       }
     } catch {
-      // Best-effort — the curator can hit "Pull from YouTube" to retry.
+      // Best-effort - the curator can hit "Pull from YouTube" to retry.
     } finally {
       setFetchingMeta(false)
     }
@@ -174,7 +174,7 @@ export function PublishFilmDialog({
         error?: string
         data?: { entry?: PublishedResult }
       } | null
-      // The API wraps every payload in the standard { ok, data } envelope —
+      // The API wraps every payload in the standard { ok, data } envelope -
       // the entry lives at payload.data.entry. Reading it at the top level is
       // what made publishing appear to fail while the film was really saved.
       if (!payload?.ok || !payload.data?.entry) {
@@ -182,7 +182,7 @@ export function PublishFilmDialog({
       }
       const entry = payload.data.entry
       toast.success('Published to the catalog', {
-        description: `“${entry.movie.title}” now has its own film page.`,
+        description: `"${entry.movie.title}" now has its own film page.`,
       })
       onOpenChange(false)
       onPublished(entry)
@@ -348,7 +348,7 @@ export function PublishFilmDialog({
                   ) : (
                     <Sparkles className="size-3.5" />
                   )}
-                  {fetchingMeta ? 'Fetching…' : 'Pull from YouTube'}
+                  {fetchingMeta ? 'Fetching...' : 'Pull from YouTube'}
                 </Button>
               </div>
               <Textarea
@@ -374,7 +374,7 @@ export function PublishFilmDialog({
               </Button>
               <Button type="submit" disabled={!title.trim() || submitting}>
                 <Rocket data-icon="inline-start" />
-                {submitting ? 'Publishing…' : 'Publish to catalog'}
+                {submitting ? 'Publishing...' : 'Publish to catalog'}
               </Button>
             </DialogFooter>
           </FieldGroup>

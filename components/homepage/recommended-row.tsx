@@ -13,7 +13,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 }
 
 /**
- * "Because you watched …" — taste-based recommendations, computed entirely
+ * "Because you watched ..." - taste-based recommendations, computed entirely
  * client-side from the already-fetched homepage context (zero new API calls).
  *
  * Scores unwatched, active catalog films by affinity to the viewer's history
@@ -46,7 +46,7 @@ export function RecommendedRow() {
     if (candidates.length === 0) return { list: [], topCategory, topCountry }
 
     if (!topCategory && !topCountry) {
-      // No signal yet (fresh account) — newest unwatched films.
+      // No signal yet (fresh account) - newest unwatched films.
       return { list: sortLatest(candidates, 10), topCategory, topCountry }
     }
 
@@ -65,7 +65,7 @@ export function RecommendedRow() {
   const label = movies.topCategory ? (CATEGORY_LABEL[movies.topCategory] ?? movies.topCategory) : null
   const title = label ? `Because you watched ${label}` : 'Recommended for you'
   const description = label
-    ? `More ${label}${movies.topCountry ? ` from ${movies.topCountry} and beyond` : ''}, picked from your taste — not an algorithm's.`
+    ? `More ${label}${movies.topCountry ? ` from ${movies.topCountry} and beyond` : ''}, picked from your taste - not an algorithm's.`
     : 'Films matching your taste, picked from your watch history.'
 
   return (

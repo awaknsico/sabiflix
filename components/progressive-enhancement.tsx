@@ -8,7 +8,7 @@ import { useEffect } from 'react'
  * Detects Data-Saver / 2G links and low-core CPUs once on mount and flips a
  * `data-lite` attribute on <html>. globals.css reads it to strip backdrop
  * blurs and collapse transitions/animations, and the hero reel freezes to
- * manual controls. Costs one attribute write — no layout thrash, no fetches.
+ * manual controls. Costs one attribute write - no layout thrash, no fetches.
  */
 export function ProgressiveEnhancement() {
   useEffect(() => {

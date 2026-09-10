@@ -1,5 +1,5 @@
 /**
- * Rate limiting — Upstash Redis with in-memory fallback.
+ * Rate limiting - Upstash Redis with in-memory fallback.
  *
  * Uses a fixed-window counter keyed by IP + route prefix.
  * When Upstash is not configured, falls back to an in-memory Map
@@ -74,7 +74,7 @@ export async function rateLimit(
 
 /** Extract client IP from request headers. */
 export function clientIp(request: Request): string {
-  /* Cloudflare's canonical client-IP header — always present on edge requests
+  /* Cloudflare's canonical client-IP header - always present on edge requests
      and the reliable choice on Workers. x-forwarded-for can be missing here or
      rewritten by internal hops (we observed a shared `::1` bucket otherwise). */
   const cfIp = request.headers.get('cf-connecting-ip')

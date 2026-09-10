@@ -1,7 +1,7 @@
 /**
  * Global search endpoint (header / search box).
  *
- * GET /api/search?q=lagos — D1-backed, returns up to 6 active matches ranked
+ * GET /api/search?q=lagos - D1-backed, returns up to 6 active matches ranked
  * by recency across title, alt titles, synopsis, actors, country and language.
  * This replaces the old client-side scan over the bundled mock catalog.
  */

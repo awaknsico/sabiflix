@@ -21,7 +21,7 @@ export function MovieCarousel({
    * the RSC payload only ships the card DTOs once instead of once per rail.
    */
   movieIds: string[]
-  /** Section leader — renders the gold "No. 01" kicker (audit step 6). */
+  /** Section leader - renders the gold "No. 01" kicker (audit step 6). */
   index?: number
   /** Optional extra header control (e.g. a segmentation toggle), shown on the right. */
   action?: ReactNode

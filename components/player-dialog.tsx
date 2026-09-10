@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -43,7 +43,7 @@ const API_LOAD_TIMEOUT_MS = 10_000
 
 /**
  * Load the YouTube IFrame API. Rejects (instead of hanging forever) when the
- * script fails to load or stalls â€” ad blockers, strict tracking prevention,
+ * script fails to load or stalls - ad blockers, strict tracking prevention,
  * and flaky networks all trip this, and an unsettled promise used to leave
  * the dialog stuck on its loading spinner. A rejected load resets the cached
  * promise so the next open can retry.
@@ -88,9 +88,9 @@ function loadYouTubeApi(): Promise<void> {
 /**
  * Shared distraction-free player dialog.
  *
- * Every playback surface in the app funnels through here â€” the primary
+ * Every playback surface in the app funnels through here - the primary
  * "Watch Film" button, the "Play preview" CTA, and the film page's
- * tap-for-sound pill â€” so they all share resume support and the same
+ * tap-for-sound pill - so they all share resume support and the same
  * "no related videos / end screens / annotations" configuration.
  */
 export function PlayerDialog({
@@ -100,7 +100,7 @@ export function PlayerDialog({
   startAt = 0,
   movieId,
   onClose,
-  caption = 'Distraction-free player â€” related videos, end screens, and annotations are hidden.',
+  caption = 'Distraction-free player - related videos, end screens, and annotations are hidden.',
 }: {
   open: boolean
   youtubeVideoId: string
@@ -119,12 +119,12 @@ export function PlayerDialog({
   const start = Math.max(0, Math.floor(startAt))
   const [ready, setReady] = useState(false)
   const [playerError, setPlayerError] = useState(false)
-  /** True while the browser is showing any element fullscreen â€” hides app chrome. */
+  /** True while the browser is showing any element fullscreen - hides app chrome. */
   const [isFullscreen, setIsFullscreen] = useState(false)
   /**
    * The IFrame API couldn't be loaded at all (blocked/stalled). We fall back
    * to a plain embed with the same distraction-free configuration so playback
-   * still works â€” just without resume history reporting.
+   * still works - just without resume history reporting.
    */
   const [apiFailed, setApiFailed] = useState(false)
   const { recordProgress, markComplete } = useWatchHistory()
@@ -139,16 +139,16 @@ export function PlayerDialog({
   /**
    * Autoplay-with-sound recovery window. Browsers that refuse unmuted
    * autoplay pause the video the instant sound is restored. While this window
-   * is open we resume playback once â€” worst case it continues muted instead
+   * is open we resume playback once - worst case it continues muted instead
    * of freezing on the first frame.
    */
   const policyResumeRef = useRef({ until: 0, used: false })
 
   /**
-   * Option B â€” letterboxed dialog fullscreen with auto-rotate.
+   * Option B - letterboxed dialog fullscreen with auto-rotate.
    *
    * Fullscreen targets only the dialog container (letterboxed: black borders
-   * preserved, no zoom/crop) so iOS still auto-rotates â€” WebKit rejects
+   * preserved, no zoom/crop) so iOS still auto-rotates - WebKit rejects
    * orientation locks unless something is fullscreen. Authority over the video
    * element itself stays with YouTube: the iframe is never forced fullscreen,
    * so its own fullscreen button letterboxes correctly.
@@ -213,7 +213,7 @@ export function PlayerDialog({
 
   // Lock scroll + Escape to close while the player is open. Fullscreen is only
   // tracked passively: app chrome hides while any element is fullscreen and
-  // returns on exit. Nothing re-enters fullscreen â€” YouTube's own fullscreen
+  // returns on exit. Nothing re-enters fullscreen - YouTube's own fullscreen
   // button owns the video element, which is what preserves its letterbox.
   useEffect(() => {
     if (!open) return
@@ -245,7 +245,7 @@ export function PlayerDialog({
       return
     }
     let cancelled = false
-    // New session â€” start reporting progress from the resume position.
+    // New session - start reporting progress from the resume position.
     lastReportedRef.current = Math.max(0, Math.floor(startAt))
     playingRef.current = false
     immersiveRunningRef.current = false
@@ -257,7 +257,7 @@ export function PlayerDialog({
           videoId: youtubeVideoId,
           playerVars: {
             autoplay: 1,
-            // Start muted â€” browsers only ever permit muted autoplay, and the
+            // Start muted - browsers only ever permit muted autoplay, and the
             // player is created asynchronously (after the click has passed), so
             // an unmuted autoplay would be silently blocked. We restore sound
             // in onReady (see below); if the click's activation window has
@@ -283,7 +283,7 @@ export function PlayerDialog({
               if (cancelled) return
               const p = playerRef.current
               if (!p) return
-              // Snapshot the runtime â€” accurate for any source, resilient to re-uploads.
+              // Snapshot the runtime - accurate for any source, resilient to re-uploads.
               const duration = p.getDuration?.()
               if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
                 durationRef.current = Math.floor(duration)
@@ -315,7 +315,7 @@ export function PlayerDialog({
                 playingRef.current = false
                 const recovery = policyResumeRef.current
                 if (!recovery.used && Date.now() < recovery.until) {
-                  // A policy pause right after unmute â€” resume once rather
+                  // A policy pause right after unmute - resume once rather
                   // than showing a frozen player. Worst case: muted playback.
                   recovery.used = true
                   playerRef.current?.playVideo?.()
@@ -343,7 +343,7 @@ export function PlayerDialog({
       })
       .catch(() => {
         // The IFrame API is unavailable (blocked, stalled, offline CDN).
-        // Swap in a plain embed with the same distraction-free configuration â€”
+        // Swap in a plain embed with the same distraction-free configuration -
         // it autoplays muted and never depends on the API handshake. Resume
         // history is skipped for this session rather than breaking playback.
         if (cancelled) return
@@ -404,7 +404,7 @@ export function PlayerDialog({
         {playerError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center text-white/70">
             <p className="max-w-md text-sm">
-              This film&apos;s source can&apos;t be played right now â€” it may have been
+              This film&apos;s source can&apos;t be played right now - it may have been
               removed or blocked from embedding. Close and try another title.
             </p>
             <Button
@@ -419,7 +419,7 @@ export function PlayerDialog({
         ) : !ready ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/70">
             <Loader2 className="size-8 animate-spin" />
-            <span className="text-sm">Loading filmâ€¦</span>
+            <span className="text-sm">Loading film...</span>
           </div>
         ) : null}
         <div className={isFullscreen ? 'flex max-h-full w-full flex-1 items-center justify-center overflow-hidden' : 'mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6'}>
