@@ -25,6 +25,7 @@ function toItem(i: HistoryEntry) {
     posterUrl: i.posterUrl,
     progressSeconds: i.progressSeconds,
     durationSeconds: i.durationSeconds,
+    completedAt: i.completedAt,
     updatedAt: i.updatedAt,
   }
 }
@@ -57,6 +58,7 @@ export const POST = handler(async (request: Request) => {
     movieId: data.movieId,
     progressSeconds: data.progressSeconds,
     durationSeconds: data.durationSeconds,
+    completed: data.completed,
   })
 
   return ok({
@@ -64,6 +66,7 @@ export const POST = handler(async (request: Request) => {
       movieId: entry!.movieId,
       progressSeconds: entry!.progressSeconds,
       durationSeconds: entry!.durationSeconds,
+      completedAt: entry!.completedAt,
       updatedAt: entry!.updatedAt,
     },
   })

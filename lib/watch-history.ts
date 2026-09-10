@@ -34,6 +34,7 @@ interface HistoryApiItem {
   posterUrl: string | null
   progressSeconds: number
   durationSeconds: number
+  completedAt: number | null
   updatedAt: number /* epoch seconds */
 }
 
@@ -49,6 +50,15 @@ interface HistoryApiResponse {
 
 function apiToItem(entry: HistoryApiItem): WatchHistoryItem {
   const updatedAt = new Date(entry.updatedAt * 1000).toISOString()
+  // The server is the source of truth for completion (completedAt survives
+  // heartbeats that omit durationSeconds). Only fall back to the local
+  // ≥95% ratio when the server sent no completedAt (legacy rows).
+  const completedAt =
+    entry.completedAt != null
+      ? new Date(entry.completedAt * 1000).toISOString()
+      : entry.durationSeconds > 0 && entry.progressSeconds / entry.durationSeconds >= COMPLETE_RATIO
+        ? updatedAt
+        : null
   return {
     id: `wh-${entry.movieId}`,
     movieId: entry.movieId,
@@ -56,10 +66,7 @@ function apiToItem(entry: HistoryApiItem): WatchHistoryItem {
     progressSeconds: entry.progressSeconds,
     durationSeconds: entry.durationSeconds,
     updatedAt,
-    completedAt:
-      entry.durationSeconds > 0 && entry.progressSeconds / entry.durationSeconds >= COMPLETE_RATIO
-        ? updatedAt
-        : null,
+    completedAt,
   }
 }
 
@@ -67,14 +74,13 @@ function apiToItem(entry: HistoryApiItem): WatchHistoryItem {
 /* Pure helpers (unchanged — operate on the normalized shape)          */
 /* ------------------------------------------------------------------ */
 
-/** True when the viewer has finished — explicitly completed, or ≥95% in. */
+/** True when the viewer has finished. The server's completedAt is the source
+ * of truth — it survives heartbeats that omit durationSeconds, and it is
+ * always a string|null (never undefined) after apiToItem normalization. */
 export function isComplete(
   entry: Pick<WatchHistoryItem, 'completedAt' | 'progressSeconds' | 'durationSeconds'>,
 ): boolean {
-  return (
-    Boolean(entry.completedAt) ||
-    (entry.durationSeconds > 0 && entry.progressSeconds / entry.durationSeconds >= COMPLETE_RATIO)
-  )
+  return entry.completedAt != null
 }
 
 /** Incomplete entries, latest activity first — the raw material for "Continue watching". */
@@ -235,11 +241,32 @@ export function useWatchHistory(validMovieIds?: readonly string[]) {
   const markComplete = useCallback(
     async (movieId: string) => {
       const entry = entries.find((e) => e.movieId === movieId)
-      if (!entry) return
-      /* Recording progress == duration flips completedAt on the server. */
-      await recordProgress({ movieId, progressSeconds: entry.durationSeconds, durationSeconds: entry.durationSeconds })
+      try {
+        const res = await fetch('/api/watch-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            movieId,
+            // Keep the current resume position — completion is an explicit
+            // flag, not progress == duration.
+            progressSeconds: entry?.progressSeconds ?? 0,
+            durationSeconds:
+              entry && Number.isFinite(entry.durationSeconds) && entry.durationSeconds > 0
+                ? Math.floor(entry.durationSeconds)
+                : undefined,
+            completed: true,
+          }),
+        })
+        const data = await res.json()
+        if (data.ok && data.data?.entry) {
+          const e = data.data.entry
+          setEntries((prev) => [apiToItem(e), ...prev.filter((x) => x.movieId !== movieId)])
+        }
+      } catch {
+        /* Silently fail — the next heartbeat will retry. */
+      }
     },
-    [entries, recordProgress],
+    [entries],
   )
 
   const remove = useCallback((movieId: string) => {

@@ -63,18 +63,27 @@ export function HomepageDataProvider({ children, movieIds, cards, enabled = true
       .then((data) => {
         if (cancelled) return
         if (data.ok && data.data?.items) {
-          const items: WatchHistoryItem[] = data.data.items.map((item: any) => ({
-            id: `wh-${item.movieId}`,
-            movieId: item.movieId,
-            watchedAt: new Date(item.updatedAt * 1000).toISOString(),
-            progressSeconds: item.progressSeconds,
-            durationSeconds: item.durationSeconds,
-            updatedAt: new Date(item.updatedAt * 1000).toISOString(),
-            completedAt:
-              item.durationSeconds > 0 && item.progressSeconds / item.durationSeconds >= 0.95
-                ? new Date(item.updatedAt * 1000).toISOString()
-                : null,
-          }))
+          // Server completedAt is the source of truth (survives heartbeats
+          // that omit durationSeconds). Fall back to the ≥95% ratio only for
+          // legacy rows that predate server completion.
+          const items: WatchHistoryItem[] = data.data.items.map((item: any) => {
+            const updatedAt = new Date(item.updatedAt * 1000).toISOString()
+            const completedAt =
+              item.completedAt != null
+                ? new Date(item.completedAt * 1000).toISOString()
+                : item.durationSeconds > 0 && item.progressSeconds / item.durationSeconds >= 0.95
+                  ? updatedAt
+                  : null
+            return {
+              id: `wh-${item.movieId}`,
+              movieId: item.movieId,
+              watchedAt: updatedAt,
+              progressSeconds: item.progressSeconds,
+              durationSeconds: item.durationSeconds,
+              updatedAt,
+              completedAt,
+            }
+          })
           setWatchHistory(items)
         }
       })

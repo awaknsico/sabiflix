@@ -153,6 +153,7 @@ export const progressSchema = z.object({
   movieId: uuid,
   progressSeconds: z.number().min(0),
   durationSeconds: z.number().min(0).optional(),
+  completed: z.boolean().optional(),
 })
 
 /* ------------------------------------------------------------------ */

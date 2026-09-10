@@ -372,9 +372,10 @@ export function DashboardView() {
                             variant="ghost"
                             size="sm"
                             onClick={() => markComplete(entry.movieId)}
+                            aria-label={`Mark ${movie.title} as finished`}
                           >
                             <Check data-icon="inline-start" />
-                            Finished
+                            Mark finished
                           </Button>
                         ) : null}
                         <Button

@@ -18,22 +18,36 @@ export interface HistoryEntry {
   year: number | null
   progressSeconds: number
   durationSeconds: number
+  completedAt: number | null
   updatedAt: number
 }
 
 export async function recordProgress(data: {
-  userId: string; movieId: string; progressSeconds: number; durationSeconds?: number
+  userId: string; movieId: string; progressSeconds: number; durationSeconds?: number; completed?: boolean
 }): Promise<HistoryEntry | null> {
   const d = db()
   const now = nowEpoch()
   const existing = await d.select().from(watchHistory)
     .where(and(eq(watchHistory.userId, data.userId), eq(watchHistory.movieId, data.movieId))).all()
+  const effectiveDuration = data.durationSeconds ?? existing[0]?.durationSeconds ?? 0
+  const reachedEnd =
+    data.completed === true ||
+    (effectiveDuration > 0 && data.progressSeconds >= effectiveDuration) ||
+    (effectiveDuration > 0 && data.progressSeconds / effectiveDuration >= 0.95)
+  // Once finished, stay finished unless the viewer rewinds well below the
+  // completion threshold (explicit replay). A plain progress heartbeat must
+  // never clear a previous completion.
+  const nextCompletedAt = reachedEnd
+    ? now
+    : data.completed === false
+      ? null
+      : (existing[0]?.completedAt ?? null)
   if (existing[0]) {
     await d.update(watchHistory)
       .set({
         progressSeconds: data.progressSeconds,
         durationSeconds: data.durationSeconds ?? existing[0].durationSeconds,
-        completedAt: data.durationSeconds && data.progressSeconds >= data.durationSeconds ? now : null,
+        completedAt: nextCompletedAt,
         updatedAt: now,
       })
       .where(eq(watchHistory.id, existing[0].id))
@@ -43,7 +57,7 @@ export async function recordProgress(data: {
       id: uuid_v7(), userId: data.userId, movieId: data.movieId,
       progressSeconds: data.progressSeconds,
       durationSeconds: data.durationSeconds ?? 0,
-      completedAt: data.durationSeconds && data.progressSeconds >= data.durationSeconds ? now : null,
+      completedAt: nextCompletedAt,
       updatedAt: now, createdAt: now,
     })
   }
@@ -57,6 +71,7 @@ export async function getLastProgressEntry(userId: string, movieId: string): Pro
       posterUrl: movies.posterUrl, year: movies.year,
       progressSeconds: watchHistory.progressSeconds,
       durationSeconds: watchHistory.durationSeconds,
+      completedAt: watchHistory.completedAt,
       updatedAt: watchHistory.updatedAt,
     })
     .from(watchHistory)
@@ -76,6 +91,7 @@ export async function getResumeList(userId: string, limit = 50): Promise<History
       posterUrl: movies.posterUrl, year: movies.year,
       progressSeconds: watchHistory.progressSeconds,
       durationSeconds: watchHistory.durationSeconds,
+      completedAt: watchHistory.completedAt,
       updatedAt: watchHistory.updatedAt,
     })
     .from(watchHistory)
@@ -111,6 +127,7 @@ export async function getHistoryPage(
       posterUrl: movies.posterUrl, year: movies.year,
       progressSeconds: watchHistory.progressSeconds,
       durationSeconds: watchHistory.durationSeconds,
+      completedAt: watchHistory.completedAt,
       updatedAt: watchHistory.updatedAt,
     })
     .from(watchHistory)
