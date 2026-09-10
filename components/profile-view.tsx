@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
-import { User, Mail, Shield, Calendar, LayoutDashboard } from 'lucide-react'
+import { User, Mail, Shield, Calendar, LayoutDashboard, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,9 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
 
 interface ProfileUser {
   id: string
@@ -58,22 +61,12 @@ interface ApplicationStatus {
   submittedAt: string
 }
 
-function applicationStateLabel(application: ApplicationStatus | null): string {
-  if (!application) return 'Not submitted'
-  if (application.status !== 'pending') return application.status === 'approved' ? 'Approved' : 'Rejected'
-  return 'Pending review'
-}
-
-function applicationStateVariant(application: ApplicationStatus | null): 'default' | 'secondary' | 'outline' | 'destructive' {
-  if (!application) return 'outline'
-  if (application.status === 'approved') return 'default'
-  if (application.status === 'pending') return 'secondary'
-  return 'destructive'
-}
 export function ProfileView() {
   const { user: clerkUser } = useUser()
   const [profile, setProfile] = useState<ProfileUser | null>(null)
   const [application, setApplication] = useState<ApplicationStatus | null>(null)
+  const [applicationMessage, setApplicationMessage] = useState('')
+  const [appSubmitting, setAppSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -116,6 +109,31 @@ export function ProfileView() {
       cancelled = true
     }
   }, [clerkUser])
+
+  async function submitApplication(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setAppSubmitting(true)
+    try {
+      const res = await fetch('/api/submissions/filmmaker-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: applicationMessage.trim() || undefined }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || data?.ok !== true) throw new Error(data?.error || 'Could not submit your application.')
+      setApplication(data.data.application as ApplicationStatus)
+      setApplicationMessage('')
+      toast.success('Application submitted', {
+        description: 'A moderator will review your request for filmmaker access.',
+      })
+    } catch (err) {
+      toast.error('Could not submit application', {
+        description: err instanceof Error ? err.message : 'Please try again.',
+      })
+    } finally {
+      setAppSubmitting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -252,6 +270,106 @@ export function ProfileView() {
                 {profile.id}
               </span>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="size-5 text-primary" />
+              Filmmaker access
+            </CardTitle>
+            <CardDescription>
+              Share your work on SabiFlix — approved filmmakers and curators can submit films for review
+              from the dashboard.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {profile.role === 'creator' || profile.role === 'admin' ? (
+              <p className="text-sm text-muted-foreground">
+                You have full access — submit films from the{' '}
+                <Link href="/dashboard" className="font-medium text-primary hover:underline">
+                  submissions tab
+                </Link>{' '}
+                of your dashboard.
+              </p>
+            ) : application?.status === 'approved' ? (
+              <p className="text-sm text-muted-foreground">
+                <Badge variant="default" className="mb-1">
+                  Approved
+                </Badge>
+                You are an approved filmmaker — submit films from the{' '}
+                <Link href="/dashboard" className="font-medium text-primary hover:underline">
+                  submissions tab
+                </Link>{' '}
+                of your dashboard.
+              </p>
+            ) : application?.status === 'pending' ? (
+              <>
+                <Badge variant="secondary">Pending review</Badge>
+                <p className="text-sm text-muted-foreground">
+                  Your application is with our moderators. We&apos;ll update this page as soon as it&apos;s
+                  reviewed.
+                </p>
+              </>
+            ) : application ? (
+              <>
+                <Badge variant="destructive">Application not approved</Badge>
+                <p className="text-sm text-muted-foreground">
+                  {application.rejectionReason
+                    ? `Our moderators said: ${application.rejectionReason}`
+                    : 'Your last application was not approved.'}
+                </p>
+                <Separator />
+                <form onSubmit={submitApplication}>
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="filmmaker-message">
+                        Why do you want to share films on SabiFlix?
+                      </FieldLabel>
+                      <Textarea
+                        id="filmmaker-message"
+                        rows={3}
+                        placeholder="Tell us a little about your work and why it belongs on SabiFlix."
+                        value={applicationMessage}
+                        onChange={(e) => setApplicationMessage(e.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <Button type="submit" disabled={appSubmitting}>
+                        <Send data-icon="inline-start" />
+                        {appSubmitting ? 'Submitting…' : 'Re-apply for access'}
+                      </Button>
+                    </Field>
+                  </FieldGroup>
+                </form>
+              </>
+            ) : (
+              <form onSubmit={submitApplication}>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="filmmaker-message">
+                      Why do you want to share films on SabiFlix?
+                    </FieldLabel>
+                    <Textarea
+                      id="filmmaker-message"
+                      rows={3}
+                      placeholder="Tell us a little about your work and why it belongs on SabiFlix."
+                      value={applicationMessage}
+                      onChange={(e) => setApplicationMessage(e.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <Button type="submit" disabled={appSubmitting}>
+                      <Send data-icon="inline-start" />
+                      {appSubmitting ? 'Submitting…' : 'Request filmmaker access'}
+                    </Button>
+                  </Field>
+                </FieldGroup>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

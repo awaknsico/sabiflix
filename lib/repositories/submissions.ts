@@ -87,6 +87,7 @@ export async function canSubmitFilms(userId: string): Promise<boolean> {
     .select({ status: filmSubmissionApplications.status })
     .from(filmSubmissionApplications)
     .where(eq(filmSubmissionApplications.userId, userId))
+    .orderBy(desc(filmSubmissionApplications.createdAt))
     .limit(1)
     .all()
   return appRows[0]?.status === 'approved'
@@ -252,6 +253,7 @@ export async function getFilmmakerApplication(userId: string): Promise<Filmmaker
     })
     .from(filmSubmissionApplications)
     .where(eq(filmSubmissionApplications.userId, userId))
+    .orderBy(desc(filmSubmissionApplications.createdAt))
     .limit(1)
     .all()
   return rows[0] ?? null
@@ -264,11 +266,33 @@ export async function getFilmmakerApplication(userId: string): Promise<Filmmaker
  * this is a no-op that returns the existing row. Otherwise inserts a new one.
  */
 export async function createFilmmakerApplication(userId: string, message: string | null): Promise<FilmmakerApplicationView> {
+  const d = db()
+  const now = nowEpoch()
+
   const existing = await getFilmmakerApplication(userId)
   if (existing && existing.status === 'pending') return existing
 
+  /* Re-applying after a rejection: `film_submission_applications.user_id` is
+     UNIQUE, so we resurrect the existing row (back to pending) rather than
+     inserting a duplicate. This keeps the applicant's history intact. */
+  if (existing) {
+    await d
+      .update(filmSubmissionApplications)
+      .set({
+        message: message ?? null,
+        status: 'pending' as const,
+        reviewedBy: null,
+        reviewedAt: null,
+        rejectionReason: null,
+        updatedAt: now,
+      })
+      .where(eq(filmSubmissionApplications.id, existing.id))
+    const refreshed = await getFilmmakerApplication(userId)
+    if (!refreshed) throw new Error('Failed to reload the application')
+    return refreshed
+  }
+
   const { uuid_v7 } = await import('@/lib/ids')
-  const now = nowEpoch()
   const values = {
     id: uuid_v7(),
     userId,
@@ -280,7 +304,7 @@ export async function createFilmmakerApplication(userId: string, message: string
     createdAt: now,
     updatedAt: now,
   }
-  await db().insert(filmSubmissionApplications).values(values)
+  await d.insert(filmSubmissionApplications).values(values)
   return values as unknown as FilmmakerApplicationView
 }
 

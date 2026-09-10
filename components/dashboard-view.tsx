@@ -61,6 +61,9 @@ export function DashboardView() {
   const [requests, setRequests] = useState<FilmRequest[]>([])
   const [submissions, setSubmissions] = useState<FilmSubmission[]>([])
   const [displayName, setDisplayName] = useState('You')
+  /* Whether this account may submit films (approved filmmaker / creator / admin).
+     null until /api/me loads — the form shows meanwhile; the server guards anyway. */
+  const [submissionGate, setSubmissionGate] = useState<{ eligible: boolean; pending: boolean } | null>(null)
   const [requestSubmitting, setRequestSubmitting] = useState(false)
   const [submissionSubmitting, setSubmissionSubmitting] = useState(false)
 
@@ -93,6 +96,12 @@ export function DashboardView() {
         if (Array.isArray(subList)) setSubmissions(subList as FilmSubmission[])
         const user = (me as any)?.ok === true ? (me as any).data?.user : null
         if (user?.displayName) setDisplayName(user.displayName)
+        if (typeof user?.canSubmitFilms === 'boolean') {
+          setSubmissionGate({
+            eligible: user.canSubmitFilms,
+            pending: !!user.hasPendingFilmmakerApplication,
+          })
+        }
       })
       .catch(() => {})
   }, [])
@@ -499,9 +508,38 @@ export function DashboardView() {
         {/* Submissions */}
         <TabsContent value="submissions">
           <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
-            <Card className="h-fit">
-              <CardHeader>
-                <CardTitle>Submit your film</CardTitle>
+            {submissionGate !== null && submissionGate.eligible === false ? (
+              <Card className="h-fit">
+                <CardHeader>
+                  <CardTitle>Filmmaker access required</CardTitle>
+                  <CardDescription>
+                    Submitting a film for review is limited to approved filmmakers and curators.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                  {submissionGate.pending ? (
+                    <p className="text-sm text-muted-foreground">
+                      Your access application is{' '}
+                      <Badge variant="secondary" className="mx-0.5">
+                        pending review
+                      </Badge>{' '}
+                      — we&apos;ll update you as soon as a moderator looks at it.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Request filmmaker access from your profile to unlock submissions — it only takes a
+                      moment.
+                    </p>
+                  )}
+                  <Button size="sm" render={<Link href="/profile" />}>
+                    Manage filmmaker access
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="h-fit">
+                <CardHeader>
+                  <CardTitle>Submit your film</CardTitle>
                 <CardDescription>
                   Filmmakers: share a YouTube link and our moderators will review it.
                 </CardDescription>
@@ -592,6 +630,7 @@ export function DashboardView() {
                 </form>
               </CardContent>
             </Card>
+            )}
 
             <div className="flex flex-col gap-3">
               <h2 className="text-sm font-medium text-muted-foreground">Your submissions</h2>
