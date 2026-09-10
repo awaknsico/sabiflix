@@ -30,6 +30,11 @@ migrations_dir = "d1/migrations"
 # Environment variables (use `wrangler secret put` for sensitive values)
 [vars]
 NEXT_PUBLIC_APP_URL = "https://sabiflix.de5.net"
+# Public by design (safe to commit). Server-side Clerk (middleware/auth())
+# reads process.env at runtime, so this fixes the 500 missing-publishable-key
+# crash on Workers Builds deploys. NOTE: it must ALSO be set as a Build
+# variable in the dashboard so client bundles inline it at build time.
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuc2FiaWZsaXguZGU1Lm5ldCQ"
 
 # Secrets (set via CLI, NOT here):
 #   wrangler secret put CLERK_SECRET_KEY
