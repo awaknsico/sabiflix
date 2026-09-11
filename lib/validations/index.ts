@@ -104,6 +104,8 @@ export const submissionCreateSchema = z.object({
 export const submissionReviewSchema = z.object({
   status: z.enum(['approved', 'rejected']),
   adminNotes: z.string().max(1000).optional(),
+  /** Link a freshly published catalog movie so the row can graduate to Logs. */
+  publishedMovieId: z.string().min(1).max(100).optional(),
 })
 
 export type SubmissionCreate = z.infer<typeof submissionCreateSchema>

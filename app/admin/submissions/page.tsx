@@ -65,7 +65,8 @@ export default function AdminSubmissionsPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/submissions?page=${page}&perPage=${PER_PAGE}`)
+      /* Admin queue endpoint (actionable only) - handled rows graduate to Logs. */
+      const res = await fetch(`/api/admin/submissions?page=${page}&perPage=${PER_PAGE}`)
       const data = await res.json()
       setSubs(Array.isArray(data?.data?.submissions) ? data.data.submissions : [])
       setTotal(Number(data?.meta?.total ?? 0))
@@ -83,20 +84,23 @@ export default function AdminSubmissionsPage() {
   }, [load])
 
   function review(id: string, status: 'approved' | 'rejected') {
-    setSubs((prev) =>
-      prev.map((sub) =>
-        sub.id === id
-          ? {
-              ...sub,
-              status,
-              adminNotes:
-                status === 'approved'
-                  ? 'Meets curation guidelines - scheduled for the catalog.'
-                  : 'Needs a cleaner master before we can feature it.',
-            }
-          : sub,
-      ),
-    )
+    /* Rejected rows graduate to Logs -> drop them from the queue at once.
+       Approved-but-unpublished rows stay actionable until they are published. */
+    if (status === 'rejected') {
+      setSubs((prev) => prev.filter((sub) => sub.id !== id))
+    } else {
+      setSubs((prev) =>
+        prev.map((sub) =>
+          sub.id === id
+            ? {
+                ...sub,
+                status,
+                adminNotes: 'Meets curation guidelines - scheduled for the catalog.',
+              }
+            : sub,
+        ),
+      )
+    }
     toast.success(status === 'approved' ? 'Submission approved' : 'Submission rejected', {
       description: 'The filmmaker will see this status on their dashboard.',
     })
@@ -110,32 +114,41 @@ export default function AdminSubmissionsPage() {
             ? 'Meets curation guidelines - scheduled for the catalog.'
             : 'Needs a cleaner master before we can feature it.',
       }),
-    }).catch(() =>
-      toast.error('Could not save that review', { description: 'Please try again.' }),
-    )
+    })
+      .then(async (res) => {
+        /* Re-pull so rejected rows actually leave the queue and graduates
+           show up under Request & Review Logs. */
+        if (res.ok) await load()
+      })
+      .catch(() =>
+        toast.error('Could not save that review', { description: 'Please try again.' }),
+      )
   }
 
   function handlePublished(sub: AdminSubmission, movieId: string) {
-    setSubs((prev) =>
-      prev.map((s) =>
-        s.id === sub.id
-          ? {
-              ...s,
-              status: 'approved',
-              publishedMovieId: movieId,
-              adminNotes: 'Published to the catalog with auto-fetched art.',
-            }
-          : s,
-      ),
-    )
-    // Keep the DB in sync with the publish decision.
+    /* Approved + published graduates to Logs -> drop it from the queue at once. */
+    setSubs((prev) => prev.filter((s) => s.id !== sub.id))
+    /* Persist the catalog link - sending publishedMovieId is what moves the
+       row from the Submissions queue to Request & Review Logs
+       (approved + published). Without it the film is live but the queue row
+       never graduates. */
     fetch(`/api/admin/submissions/${sub.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         status: 'approved',
         adminNotes: 'Published to the catalog with auto-fetched art.',
+        publishedMovieId: movieId,
       }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        toast.error('Published, but the queue did not update', {
+          description: 'The film is live - refresh to sync the queue.',
+        })
+        return
+      }
+      /* Re-pull the queue so the just-published row actually disappears. */
+      await load()
     }).catch(() => {})
   }
 

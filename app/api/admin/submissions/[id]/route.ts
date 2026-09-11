@@ -67,11 +67,15 @@ export const PATCH = handler(async (request: Request) => {
       adminNotes: review.adminNotes ?? null,
       reviewedBy: admin.id,
       reviewedAt: nowEpoch(),
+      /* Linking the catalog movie is what graduates the row: approved +
+         published leaves the queue and appears in /admin/logs. Without it
+         the item would sit in the queue forever. */
+      publishedMovieId: review.publishedMovieId ?? undefined,
     })
     await logActivity({
       actorId: admin.id, actorRole: 'admin', action: 'approved_submission',
       entityType: 'film_submission', entityId: id,
-      details: JSON.stringify({ submissionId: id }),
+      details: JSON.stringify({ submissionId: id, publishedMovieId: review.publishedMovieId ?? null }),
     })
     return ok({ status: 'approved' })
   }
