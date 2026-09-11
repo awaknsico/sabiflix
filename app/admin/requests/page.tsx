@@ -9,6 +9,16 @@ import { TablePagination } from '@/components/ui/pagination'
 import { Card, CardContent } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Textarea } from '@/components/ui/textarea'
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -60,6 +70,9 @@ export default function AdminRequestsPage() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  /** Close-request dialog: which request is being closed + the optional reason. */
+  const [closingId, setClosingId] = useState<string | null>(null)
+  const [closeNote, setCloseNote] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -91,7 +104,11 @@ export default function AdminRequestsPage() {
   }, [])
 
   /** Optimistically update one request, then persist via the admin PATCH. */
-  function patchRequest(id: string, patch: { status: 'found' | 'closed'; fulfilledByMovieId?: string }, successMessage: string) {
+  function patchRequest(
+    id: string,
+    patch: { status: 'found' | 'closed'; fulfilledByMovieId?: string; resolutionNote?: string },
+    successMessage: string,
+  ) {
     const linked = movieOptions.find((m) => m.id === patch.fulfilledByMovieId)
     setReqs((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
     toast.success(successMessage, {
@@ -121,8 +138,23 @@ export default function AdminRequestsPage() {
     patchRequest(id, { status: 'found', fulfilledByMovieId: movieChoice }, 'Request marked as found')
   }
 
+  /** Opening the close dialog; the note travels to the review logs. */
   function closeRequest(id: string) {
-    patchRequest(id, { status: 'closed' }, 'Request closed')
+    setClosingId(id)
+    setCloseNote('')
+  }
+
+  /** Confirm the close with an optional reason (stored for the review logs). */
+  function confirmCloseRequest() {
+    if (!closingId) return
+    const note = closeNote.trim()
+    patchRequest(
+      closingId,
+      { status: 'closed', resolutionNote: note || undefined },
+      'Request closed',
+    )
+    setClosingId(null)
+    setCloseNote('')
   }
 
   return (
@@ -225,6 +257,48 @@ export default function AdminRequestsPage() {
           itemName="requests"
         />
       </div>
+
+      {/* Close-request dialog - the optional reason is recorded for the review logs. */}
+      <Dialog
+        open={closingId !== null}
+        onOpenChange={(open) => {
+          if (!open) setClosingId(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Close request</DialogTitle>
+            <DialogDescription>
+              Mark this request as not found and close it. The reason is optional but is recorded in
+              the review logs for anyone auditing it later.
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="close-reason">Reason (optional)</FieldLabel>
+              <Textarea
+                id="close-reason"
+                rows={3}
+                placeholder="e.g. No available master with English subtitles."
+                value={closeNote}
+                onChange={(e) => setCloseNote(e.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClosingId(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="text-destructive hover:text-destructive"
+              onClick={confirmCloseRequest}
+            >
+              <X data-icon="inline-start" />
+              Close request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

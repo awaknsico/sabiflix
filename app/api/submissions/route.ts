@@ -15,7 +15,8 @@ export const dynamic = 'force-dynamic'
 export const GET = handler(async (request: Request) => {
   const user = await requireUser()
   const { page, perPage } = parsePaginationParams(new URL(request.url).searchParams)
-  const { items, total } = await listSubmissions(user.id, user.role === 'admin', { page, perPage })
+  const isAdmin = user.role === 'admin'
+  const { items, total } = await listSubmissions(user.id, isAdmin, { page, perPage }, { actionableOnly: isAdmin })
   return ok(
     {
       submissions: items.map((r) => ({

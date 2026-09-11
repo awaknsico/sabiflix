@@ -200,7 +200,26 @@ export const playlistUpdateSchema = playlistCreateSchema.partial()
 export const requestUpdateSchema = z.object({
   status: z.enum(['open', 'found', 'closed']),
   fulfilledByMovieId: uuid.optional(),
+  /** Optional admin reason recorded for the review logs (mainly on close). */
+  resolutionNote: z.string().max(1000).optional(),
 })
 
 export type RequestCreate = z.infer<typeof requestCreateSchema>
 export type RequestUpdate = z.infer<typeof requestUpdateSchema>
+
+/* ------------------------------------------------------------------ */
+/* Admin request & review logs                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Query params for GET /api/admin/logs. `status` is a per-type filter
+ * (requests: found|closed - submissions/applications: approved|rejected) and
+ * is narrowed in the repository; `q` searches title/applicant name/email.
+ */
+export const logsQuerySchema = paginationSchema.extend({
+  type: z.enum(['requests', 'submissions', 'applications']).default('requests'),
+  status: z.string().max(20).optional(),
+  q: z.string().max(200).optional(),
+})
+
+export type LogsQuery = z.infer<typeof logsQuerySchema>

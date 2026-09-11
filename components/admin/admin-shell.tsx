@@ -11,6 +11,7 @@ import {
   Inbox,
   LayoutDashboard,
   ListVideo,
+  ScrollText,
   ShieldAlert,
   Upload,
   type LucideIcon,
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
   { href: '/admin/submissions', label: 'Submissions', icon: Upload },
   { href: '/admin/requests', label: 'Requests', icon: Inbox },
   { href: '/admin/playlists', label: 'Playlists', icon: ListVideo },
+  { href: '/admin/logs', label: 'Logs', icon: ScrollText },
 ]
 
 function AdminSkeleton() {

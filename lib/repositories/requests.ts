@@ -4,7 +4,7 @@
 
 import { getDB } from '@/lib/db/client'
 import { filmRequests, users, type FilmRequest } from '@/lib/db/schema'
-import { eq, desc, count } from 'drizzle-orm'
+import { eq, desc, and, count, type SQL } from 'drizzle-orm'
 import { nowEpoch } from '@/lib/time'
 import type { Paged } from '@/lib/api/pagination'
 
@@ -15,17 +15,25 @@ export type FilmRequestRow = FilmRequest & { userDisplayName: string | null }
 /**
  * List requests - non-admins only see their own. Paged window of the
  * newest-first stream with a total count for the pagination controls.
+ *
+ * When `actionableOnly` is set (the admin queue), only unresolved requests
+ * are returned - handled ones (found / closed) graduate to the logs page and
+ * no longer belong in the queue.
  */
 export async function listRequests(
   userId?: string,
   includeAll: boolean = false,
   params: { page?: number; perPage?: number } = {},
+  options: { actionableOnly?: boolean } = {},
 ): Promise<Paged<FilmRequestRow>> {
   const d = db()
   const page = params.page ?? 1
   const perPage = params.perPage ?? 20
   const off = (page - 1) * perPage
-  const where = includeAll || !userId ? undefined : eq(filmRequests.userId, userId)
+  const conds: SQL[] = []
+  if (!includeAll && userId) conds.push(eq(filmRequests.userId, userId))
+  if (options.actionableOnly) conds.push(eq(filmRequests.status, 'open'))
+  const where = conds.length ? and(...conds) : undefined
   const rows = await d
     .select({
       id: filmRequests.id,
@@ -75,12 +83,16 @@ export async function createRequest(data: {
 }
 
 export async function updateRequest(id: string, data: Partial<{
-  status: string; fulfilledByMovieId: string | null; updatedAt: number
+  status: string; fulfilledByMovieId: string | null; reviewedBy: string | null;
+  reviewedAt: number | null; resolutionNote: string | null; updatedAt: number
 }>): Promise<void> {
   const d = db()
   const updates: Record<string, unknown> = { updatedAt: data.updatedAt ?? nowEpoch() }
   if (data.status !== undefined) updates.status = data.status
   if (data.fulfilledByMovieId !== undefined) updates.fulfilledByMovieId = data.fulfilledByMovieId
+  if (data.reviewedBy !== undefined) updates.reviewedBy = data.reviewedBy
+  if (data.reviewedAt !== undefined) updates.reviewedAt = data.reviewedAt
+  if (data.resolutionNote !== undefined) updates.resolutionNote = data.resolutionNote
   await d.update(filmRequests).set(updates).where(eq(filmRequests.id, id))
 }
 

@@ -4,7 +4,7 @@
 
 import { getDB } from '@/lib/db/client'
 import { filmSubmissions, filmSubmissionApplications, users, type FilmSubmission } from '@/lib/db/schema'
-import { eq, and, desc, sql, count } from 'drizzle-orm'
+import { eq, and, desc, sql, count, type SQL } from 'drizzle-orm'
 import { nowEpoch } from '@/lib/time'
 import type { Paged } from '@/lib/api/pagination'
 
@@ -16,17 +16,25 @@ export type FilmSubmissionRow = FilmSubmission & { userDisplayName: string | nul
  *
  * When `includeAll` is true (admin view), returns every submission across all
  * users. Otherwise scopes to the requesting user.
+ *
+ * When `actionableOnly` is set (the admin queue), only `pending` submissions are
+ * returned - reviewed ones (approved / rejected) graduate to the logs page and
+ * no longer belong in the queue.
  */
 export async function listSubmissions(
   userId: string,
   includeAll: boolean = false,
   params: { page?: number; perPage?: number } = {},
+  options: { actionableOnly?: boolean } = {},
 ): Promise<Paged<FilmSubmissionRow>> {
   const d = db()
   const page = params.page ?? 1
   const perPage = params.perPage ?? 20
   const off = (page - 1) * perPage
-  const where = includeAll ? undefined : eq(filmSubmissions.userId, userId)
+  const conds: SQL[] = []
+  if (!includeAll) conds.push(eq(filmSubmissions.userId, userId))
+  if (options.actionableOnly) conds.push(eq(filmSubmissions.status, 'pending'))
+  const where = conds.length ? and(...conds) : undefined
   const rows = await d
     .select({
       id: filmSubmissions.id,

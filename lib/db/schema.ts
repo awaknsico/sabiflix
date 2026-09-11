@@ -136,9 +136,16 @@ export const filmRequests = sqliteTable('film_requests', {
   description: text('description'),
   status: text('status', { enum: ['open', 'found', 'closed'] }).notNull().default('open'),
   fulfilledByMovieId: text('fulfilled_by_movie_id'),
+  /** Review audit: which admin attended, when, and the optional close reason. */
+  reviewedBy: text('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: integer('reviewed_at'),
+  resolutionNote: text('resolution_note'),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
-}, (t) => [index('idx_requests_status').on(t.status)])
+}, (t) => [
+  index('idx_requests_status').on(t.status),
+  index('idx_requests_reviewed').on(t.reviewedAt),
+])
 
 export const playlists = sqliteTable('playlists', {
   id: text('id').primaryKey(),

@@ -8,7 +8,7 @@
  */
 
 import { createClient } from '@libsql/client'
-import { readFileSync, mkdirSync } from 'fs'
+import { readdirSync, readFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -16,7 +16,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
 const dbPath = join(root, '.data', 'sabiflix.db')
 const seedPath = join(root, 'd1', 'seed.sql')
-const initPath = join(root, 'd1', 'migrations', '0001_init.sql')
+const migrationsDir = join(root, 'd1', 'migrations')
+/* Only numbered migration files (0001_init.sql, ...) in lexical order -
+   the baseline helper SQL is not a migration. */
+const migrationFiles = readdirSync(migrationsDir)
+  .filter((f) => /^\d{4}_.*\.sql$/.test(f))
+  .sort()
 
 mkdirSync(dirname(dbPath), { recursive: true })
 
@@ -119,8 +124,10 @@ async function runFile(client, path, label) {
 const client = createClient({ url: `file:${dbPath}` })
 
 try {
-  console.log('Applying schema...')
-  await runFile(client, initPath, 'schema')
+  console.log('Applying migrations in order:', migrationFiles.join(', '))
+  for (const file of migrationFiles) {
+    await runFile(client, join(migrationsDir, file), file)
+  }
   console.log('Seeding data...')
   await runFile(client, seedPath, 'seed')
   console.log('Done.')

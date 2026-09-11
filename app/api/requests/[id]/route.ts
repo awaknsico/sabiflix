@@ -25,23 +25,35 @@ export const PATCH = handler(async (request: Request, { params }: { params: Prom
   const existing = await getRequest(id)
   if (!existing) throw Errors.notFound('Request')
 
+  const now = nowEpoch()
+  /* Re-opening clears the review audit stamp; handling one stamps who attended,
+     when (the logs page derives turnaround from reviewed_at - created_at), and
+     the optional resolution note (e.g. why a title could not be found). */
+  const reopening = data.status === 'open'
   await updateRequest(id, {
     status: data.status,
     fulfilledByMovieId: data.status === 'found' ? (data.fulfilledByMovieId ?? null) : null,
-    updatedAt: nowEpoch(),
+    reviewedBy: reopening ? null : admin.id,
+    reviewedAt: reopening ? null : now,
+    resolutionNote: reopening ? null : (data.resolutionNote ?? null),
+    updatedAt: now,
   })
 
   await logActivity({
     actorId: admin.id, actorRole: admin.role,
     action: `request.${data.status}`, entityType: 'request', entityId: id,
-    details: JSON.stringify({ fulfilledByMovieId: data.fulfilledByMovieId ?? null }),
+    details: JSON.stringify({
+      fulfilledByMovieId: data.status === 'found' ? (data.fulfilledByMovieId ?? null) : null,
+      resolutionNote: data.resolutionNote ?? null,
+    }),
   })
 
   return ok({
     request: {
       id, status: data.status,
       fulfilledByMovieId: data.status === 'found' ? (data.fulfilledByMovieId ?? null) : null,
-      updatedAt: epochToIso(nowEpoch()),
+      resolutionNote: data.resolutionNote ?? null,
+      updatedAt: epochToIso(now),
     },
   })
 })
