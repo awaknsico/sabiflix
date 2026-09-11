@@ -17,9 +17,10 @@ export type FilmSubmissionRow = FilmSubmission & { userDisplayName: string | nul
  * When `includeAll` is true (admin view), returns every submission across all
  * users. Otherwise scopes to the requesting user.
  *
- * When `actionableOnly` is set (the admin queue), only `pending` submissions are
- * returned - reviewed ones (approved / rejected) graduate to the logs page and
- * no longer belong in the queue.
+ * When `actionableOnly` is set (the admin queue), only submissions that still
+ * need handling are returned: `pending` (not yet reviewed) and `approved` but
+ * not yet published into the catalog. Approved + published and rejected
+ * submissions graduate to the logs page and no longer belong in the queue.
  */
 export async function listSubmissions(
   userId: string,
@@ -33,7 +34,9 @@ export async function listSubmissions(
   const off = (page - 1) * perPage
   const conds: SQL[] = []
   if (!includeAll) conds.push(eq(filmSubmissions.userId, userId))
-  if (options.actionableOnly) conds.push(eq(filmSubmissions.status, 'pending'))
+  if (options.actionableOnly) {
+    conds.push(sql`(${filmSubmissions.status} = 'pending' or (${filmSubmissions.status} = 'approved' and ${filmSubmissions.publishedMovieId} is null))`)
+  }
   const where = conds.length ? and(...conds) : undefined
   const rows = await d
     .select({

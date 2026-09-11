@@ -146,7 +146,13 @@ export async function listReviewedSubmissions(
   const perPage = params.perPage ?? 20
   const off = (page - 1) * perPage
 
-  const conds: any[] = [inArray(filmSubmissions.status, ['approved', 'rejected'])]
+  const conds: any[] = [or(
+    eq(filmSubmissions.status, 'rejected'),
+    and(
+      eq(filmSubmissions.status, 'approved'),
+      sql`${filmSubmissions.publishedMovieId} is not null`,
+    ),
+  )]
   if (params.status === 'approved' || params.status === 'rejected') {
     conds.push(eq(filmSubmissions.status, params.status))
   }
@@ -311,7 +317,13 @@ export async function getLogStats(): Promise<LogStats> {
       avgTurnaround: sql<number | null>`avg(${filmSubmissions.reviewedAt} - ${filmSubmissions.createdAt})`,
     })
     .from(filmSubmissions)
-    .where(inArray(filmSubmissions.status, ['approved', 'rejected']))
+    .where(or(
+      eq(filmSubmissions.status, 'rejected'),
+      and(
+        eq(filmSubmissions.status, 'approved'),
+        sql`${filmSubmissions.publishedMovieId} is not null`,
+      ),
+    ))
     .groupBy(filmSubmissions.status)
     .all()
 
