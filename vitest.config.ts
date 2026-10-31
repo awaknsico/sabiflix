@@ -13,9 +13,11 @@ export default defineConfig({
     environment: 'jsdom',
     // node:sqlite (used by the integration tests) is a Node built-in; the jsdom
     // environment's bundler refuses to resolve it unless it is externalized.
-    server: {
-      deps: {
-        external: ['node:sqlite'],
+    environments: {
+      client: {
+        // jsdom runs as Vite's "client" environment, whose resolver tries to
+        // bundle Node built-ins. Must be noExternal (not server.deps.external).
+        noExternal: ['node:sqlite'],
       },
     },
     // Vite 8 requires Node ^22.12; on Node 20 Vitest exits 1 with "No test
