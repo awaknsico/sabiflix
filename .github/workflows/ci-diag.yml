@@ -39,7 +39,8 @@ jobs:
           {
             echo '## Vitest results'
             echo '```'
-            grep -nE -A 12 'FAIL  tests/integration' vitest.log | head -60
+            START=$(grep -n 'FAIL  tests/integration' vitest.log | head -1 | cut -d: -f1)
+            sed -n "${START},$((START+40))p" vitest.log | tr -d '\r' | tr '\n' '|'
             echo '```'
             echo '## Tail'
             echo '```'
