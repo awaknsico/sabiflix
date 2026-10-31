@@ -30,6 +30,7 @@ jobs:
           uname -m
 
       - name: Run vitest
+        id: vitest
         run: npx vitest run --reporter=verbose > vitest.log 2>&1 || true
 
       - name: Summarise
@@ -45,3 +46,8 @@ jobs:
             tail -80 vitest.log
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+          # Also emit as an error annotation, which is visible via the public
+          # check-run annotations API (and therefore readable without admin).
+          DETAIL=$(grep -nE 'FAIL|×|✗|AssertionError|Error:|Error [[:punct:]]|cannot|ENOENT|SQLITE|expected|Test Files|Tests ' vitest.log | head -12 | tr -d '\r' | tr '\n' '|' | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
+          echo "::error title=vitest failures::$DETAIL"
