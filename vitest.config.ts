@@ -11,6 +11,13 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // node:sqlite (used by the integration tests) is a Node built-in; the jsdom
+    // environment's bundler refuses to resolve it unless it is externalized.
+    server: {
+      deps: {
+        external: ['node:sqlite'],
+      },
+    },
     // Vite 8 requires Node ^22.12; on Node 20 Vitest exits 1 with "No test
     // files found" even though the suite exists. Fail loudly instead.
     passWithNoTests: false,
