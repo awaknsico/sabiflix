@@ -50,6 +50,11 @@ jobs:
 
           # Also emit as an error annotation, which is visible via the public
           # check-run annotations API (and therefore readable without admin).
-          START=$(grep -n 'FAIL  tests/integration' vitest.log | head -1 | cut -d: -f1)
-          DETAIL=$(sed -n "$((START+1)),$((START+12))p" vitest.log | tr -d '\r' | tr '\n' '|' | sed 's/%/%25/g')
+          START=$(grep -n 'FAIL  tests/' vitest.log | head -1 | cut -d: -f1)
+          if [ -n "$START" ]; then
+            DETAIL=$(sed -n "$((START+1)),$((START+12))p" vitest.log)
+          else
+            DETAIL=$(grep -nE 'Error|error|cannot|Could not|failed' vitest.log | grep -v 'Clerk' | head -12)
+          fi
+          DETAIL=$(printf '%s' "$DETAIL" | tr -d '\r' | tr '\n' '|' | sed 's/%/%25/g')
           echo "::error title=vitest failures::$DETAIL"
