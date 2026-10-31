@@ -2,9 +2,9 @@
  * Integration tests for the movie repository layer.
  *
  * Uses Node's built-in SQLite (node:sqlite) rather than @libsql/client: libsql
- * ships per-platform native binaries, so CI on linux would need the
- * linux-x64-gnu optional dependency to be present in node_modules. Node's
- * built-in driver has no native install step and is identical on every OS.
+ * ships per-platform native binaries that also need the function-scoped
+ * LOAD_EXTENSION permission, whereas node:sqlite has no native install step and
+ * behaves identically on every OS. Requires Node >= 22.12 (see engines).
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'

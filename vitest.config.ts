@@ -11,6 +11,9 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Vite 8 requires Node ^22.12; on Node 20 Vitest exits 1 with "No test
+    // files found" even though the suite exists. Fail loudly instead.
+    passWithNoTests: false,
     // Only our own test suite. The globs below also keep Vitest out of
     // vendored packages (e.g. the git-ignored clerk-nextjs/ sandbox) whose
     // published source ships its own failing *.test.ts files.
