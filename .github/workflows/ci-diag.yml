@@ -39,7 +39,7 @@ jobs:
           {
             echo '## Vitest results'
             echo '```'
-            grep -nE 'FAIL|×|✗|AssertionError|Error:|Error \[|cannot|Cannot|ENOENT|EACCES|EBUSY|SQLITE|expected|Test Files|Tests ' vitest.log | head -100
+            grep -nE -A 12 'FAIL  tests/integration' vitest.log | head -60
             echo '```'
             echo '## Tail'
             echo '```'
