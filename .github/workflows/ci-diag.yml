@@ -31,12 +31,15 @@ jobs:
           ls -la .data 2>/dev/null || echo ".data does not exist"
           ls -la node_modules/@libsql | head -20
 
+      # The runner log API is not readable without admin rights, so publish the
+      # failure output as a downloadable artifact instead.
       - name: Run vitest
-        run: npx vitest run --reporter=verbose > /tmp/vitest.log 2>&1 || true
+        run: npx vitest run --reporter=verbose > vitest-diag.log 2>&1 || true
 
-      - name: Print failures
-        run: |
-          echo "=========== FAILED TESTS ==========="
-          grep -nE "FAIL|×|AssertionError|Error:|Error \[|ENOENT|EACCES|EBUSY|SQLITE|expected|Test Files|Tests " /tmp/vitest.log | head -80
-          echo "=========== LAST 120 LINES ==========="
-          tail -120 /tmp/vitest.log
+      - name: Upload vitest output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-diag-${{ github.sha }}
+          path: vitest-diag.log
+          if-no-files-found: error
