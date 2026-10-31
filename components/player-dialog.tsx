@@ -1,12 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { Loader2, Play, X } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useWatchHistory } from '@/lib/watch-history'
 
-/* Minimal typings for the YouTube IFrame API we use. */
 declare global {
   interface Window {
     YT?: {
@@ -16,7 +14,6 @@ declare global {
   }
 }
 
-/** Minimal typing for the subset of the YouTube player API we call at runtime. */
 type YTPlayerLike = {
   getCurrentTime?: () => number
   getDuration?: () => number
@@ -25,29 +22,24 @@ type YTPlayerLike = {
   unMute?: () => void
   seekTo?: (seconds: number, allowSeekAhead: boolean) => void
   destroy?: () => void
+  setVolume?: (percent: number) => void
+  getVolume?: () => number
 }
 
-/** YouTube IFrame API player state codes (mirror of window.YT.PlayerState). */
 const YT_STATE = { ENDED: 0, PLAYING: 1, PAUSED: 2 } as const
-
-/** Heartbeat cadence while playback is active. */
 const PROGRESS_INTERVAL_MS = 5000
-
-/** Only persist when the position moved meaningfully (avoids noisy writes). */
 const MIN_PROGRESS_DELTA = 3
 
 let apiPromise: Promise<void> | null = null
-
-/** How long we wait for the IFrame API before falling back to a plain embed. */
 const API_LOAD_TIMEOUT_MS = 10_000
 
-/**
- * Load the YouTube IFrame API. Rejects (instead of hanging forever) when the
- * script fails to load or stalls - ad blockers, strict tracking prevention,
- * and flaky networks all trip this, and an unsettled promise used to leave
- * the dialog stuck on its loading spinner. A rejected load resets the cached
- * promise so the next open can retry.
- */
+function buildEmbedUrl(videoId: string, params: Record<string, string | number | null | undefined> = {}): string {
+  const base = 'https://www.youtube.com/embed/' + encodeURIComponent(videoId)
+  const pairs = Object.entries(params).filter(([, v]) => v != null && v !== '')
+  if (pairs.length === 0) return base
+  return base + '?' + pairs.map(([k, v]) => k + '=' + encodeURIComponent(v as string)).join('&')
+}
+
 function loadYouTubeApi(): Promise<void> {
   if (typeof window === 'undefined') return Promise.reject(new Error('no window'))
   if (window.YT?.Player) return Promise.resolve()
@@ -64,7 +56,7 @@ function loadYouTubeApi(): Promise<void> {
       if (ok) {
         resolve()
       } else {
-        apiPromise = null // allow the next open to retry from scratch
+        apiPromise = null
         reject(new Error(`YouTube IFrame API ${why}`))
       }
     }
@@ -85,14 +77,6 @@ function loadYouTubeApi(): Promise<void> {
 }
 
 
-/**
- * Shared distraction-free player dialog.
- *
- * Every playback surface in the app funnels through here - the primary
- * "Watch Film" button, the "Play preview" CTA, and the film page's
- * tap-for-sound pill - so they all share resume support and the same
- * "no related videos / end screens / annotations" configuration.
- */
 export function PlayerDialog({
   open,
   youtubeVideoId,
@@ -100,32 +84,24 @@ export function PlayerDialog({
   startAt = 0,
   movieId,
   onClose,
+  advancedPlayer = false,
+  playerParams,
   caption = 'Distraction-free player - related videos, end screens, and annotations are hidden.',
 }: {
   open: boolean
   youtubeVideoId: string
   title: string
-  /** Resume / preview start position in seconds. */
   startAt?: number
-  /**
-   * When set, this is a full-film watch and playback is recorded into watch
-   * history (progress heartbeats, completion on end). Previews omit this so
-   * they never pollute the viewer's history.
-   */
   movieId?: string
   onClose: () => void
+  advancedPlayer?: boolean
+  playerParams?: Record<string, string | number | null | undefined>
   caption?: string
 }) {
   const start = Math.max(0, Math.floor(startAt))
   const [ready, setReady] = useState(false)
   const [playerError, setPlayerError] = useState(false)
-  /** True while the browser is showing any element fullscreen - hides app chrome. */
   const [isFullscreen, setIsFullscreen] = useState(false)
-  /**
-   * The IFrame API couldn't be loaded at all (blocked/stalled). We fall back
-   * to a plain embed with the same distraction-free configuration so playback
-   * still works - just without resume history reporting.
-   */
   const [apiFailed, setApiFailed] = useState(false)
   const { recordProgress, markComplete } = useWatchHistory()
   const mountRef = useRef<HTMLDivElement>(null)
@@ -134,25 +110,9 @@ export function PlayerDialog({
   const durationRef = useRef(0)
   const lastReportedRef = useRef(Math.max(0, Math.floor(startAt)))
   const playingRef = useRef(false)
-  /** Guards the letterboxed fullscreen + orientation sequence. */
   const immersiveRunningRef = useRef(false)
-  /**
-   * Autoplay-with-sound recovery window. Browsers that refuse unmuted
-   * autoplay pause the video the instant sound is restored. While this window
-   * is open we resume playback once - worst case it continues muted instead
-   * of freezing on the first frame.
-   */
   const policyResumeRef = useRef({ until: 0, used: false })
 
-  /**
-   * Option B - letterboxed dialog fullscreen with auto-rotate.
-   *
-   * Fullscreen targets only the dialog container (letterboxed: black borders
-   * preserved, no zoom/crop) so iOS still auto-rotates - WebKit rejects
-   * orientation locks unless something is fullscreen. Authority over the video
-   * element itself stays with YouTube: the iframe is never forced fullscreen,
-   * so its own fullscreen button letterboxes correctly.
-   */
   const enterImmersivePlayback = useCallback(async () => {
     if (typeof window === 'undefined') return
     if (immersiveRunningRef.current) return
@@ -162,12 +122,7 @@ export function PlayerDialog({
       if (dialogEl && !document.fullscreenElement && typeof dialogEl.requestFullscreen === 'function') {
         await dialogEl.requestFullscreen().catch(() => {})
       }
-
-      const orientation = (
-        window.screen as unknown as {
-          orientation?: { lock?: (value: string) => Promise<void> }
-        }
-      ).orientation
+      const orientation = (window.screen as unknown as { orientation?: { lock?: (value: string) => Promise<void> } }).orientation
       if (orientation && typeof orientation.lock === 'function') {
         await orientation.lock('landscape').catch(() => {})
       }
@@ -176,13 +131,10 @@ export function PlayerDialog({
     }
   }, [dialogRef])
 
-  /** Restore portrait orientation when the player closes. */
   const restoreOrientation = useCallback(async () => {
     try {
       if (typeof window === 'undefined') return
-      const screenOrientation = (
-        window.screen as unknown as { orientation?: { unlock?: () => void } }
-      ).orientation
+      const screenOrientation = (window.screen as unknown as { orientation?: { unlock?: () => void } }).orientation
       screenOrientation?.unlock?.()
       if ((document as Document & { exitFullscreen?: () => Promise<void> }).fullscreenElement) {
         await document.exitFullscreen?.().catch(() => {})
@@ -192,8 +144,6 @@ export function PlayerDialog({
     }
   }, [])
 
-  // Persist the current playhead when it moved enough to matter. Called on
-  // pause, end, and close so the resume position is always fresh.
   const flushProgress = useCallback(() => {
     const p = playerRef.current
     if (!p || !movieId) return
@@ -211,10 +161,8 @@ export function PlayerDialog({
     onClose()
   }, [flushProgress, onClose, restoreOrientation])
 
-  // Lock scroll + Escape to close while the player is open. Fullscreen is only
-  // tracked passively: app chrome hides while any element is fullscreen and
-  // returns on exit. Nothing re-enters fullscreen - YouTube's own fullscreen
-  // button owns the video element, which is what preserves its letterbox.
+
+  // Lock scroll + Escape to close while the player is open.
   useEffect(() => {
     if (!open) return
     const original = document.body.style.overflow
@@ -223,8 +171,6 @@ export function PlayerDialog({
       if (e.key === 'Escape') handleClose()
     }
     function onFullscreenChange() {
-      // Track browser fullscreen so the close header / caption footer can hide
-      // while the video owns the screen, then return when it exits.
       setIsFullscreen(document.fullscreenElement != null)
     }
     window.addEventListener('keydown', onKey)
@@ -236,7 +182,7 @@ export function PlayerDialog({
     }
   }, [open, handleClose])
 
-  // Initialise the IFrame API player when opened.
+  // Initialise the player when opened.
   useEffect(() => {
     if (!open) {
       setReady(false)
@@ -245,123 +191,97 @@ export function PlayerDialog({
       return
     }
     let cancelled = false
-    // New session - start reporting progress from the resume position.
     lastReportedRef.current = Math.max(0, Math.floor(startAt))
     playingRef.current = false
     immersiveRunningRef.current = false
 
-    loadYouTubeApi()
-      .then(() => {
-        if (cancelled || !mountRef.current || !window.YT?.Player) return
-        const player = new window.YT.Player(mountRef.current, {
-          videoId: youtubeVideoId,
-          playerVars: {
-            autoplay: 1,
-            // Start muted - browsers only ever permit muted autoplay, and the
-            // player is created asynchronously (after the click has passed), so
-            // an unmuted autoplay would be silently blocked. We restore sound
-            // in onReady (see below); if the click's activation window has
-            // already closed, the policy-pause recovery in onStateChange keeps
-            // the picture moving instead of freezing on the first frame.
-            mute: 1,
-            start, // resume where the viewer left off, or the preview start
-            // origin must match the embedding page exactly, or YouTube drops
-            // the postMessage handshake and serves a "confirm you're not a bot"
-            // interstitial instead of the player. Required for embeds of any kind.
-            origin: window.location.origin,
-            // Distraction-free configuration:
-            rel: 0, // no unrelated related videos at the end
-            modestbranding: 1, // minimal YouTube branding
-            iv_load_policy: 3, // hide video annotations
-            controls: 1, // keep playback controls
-            fs: 1, // allow fullscreen
-            playsinline: 1,
-            color: 'white',
-          },
-          events: {
-            onReady: () => {
-              if (cancelled) return
-              const p = playerRef.current
-              if (!p) return
-              // Snapshot the runtime - accurate for any source, resilient to re-uploads.
-              const duration = p.getDuration?.()
-              if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
-                durationRef.current = Math.floor(duration)
-                // Source swapped since the resume/preview position was saved: if
-                // the requested start is past the end, restart so the film plays.
-                if (start > durationRef.current) {
-                  lastReportedRef.current = 0
-                  p.seekTo?.(0, true)
-                }
-              }
-              setPlayerError(false)
-              // Start playback FIRST (allowed while muted under every policy),
-              // then restore sound. If unmuting trips a browser's autoplay
-              // policy, onStateChange's recovery resumes within the window.
-              policyResumeRef.current = { until: Date.now() + 6000, used: false }
-              p.playVideo?.()
-              p.unMute?.()
-              setReady(true)
+    if (advancedPlayer) {
+      loadYouTubeApi()
+        .then(() => {
+          if (cancelled || !mountRef.current || !window.YT?.Player) return
+          const player = new window.YT.Player(mountRef.current, {
+            videoId: youtubeVideoId,
+            playerVars: {
+              autoplay: 1,
+              ...(playerParams ?? {}),
+              color: 'white',
             },
-            onStateChange: (event: { data?: number }) => {
-              if (cancelled) return
-              if (event?.data === YT_STATE.PLAYING) {
-                playingRef.current = true
-                // Letterboxed dialog fullscreen + rotate only; the YouTube
-                // iframe is never forced fullscreen, so its own fullscreen
-                // button keeps the video's black borders intact.
-                void enterImmersivePlayback()
-              } else if (event?.data === YT_STATE.PAUSED) {
-                playingRef.current = false
-                const recovery = policyResumeRef.current
-                if (!recovery.used && Date.now() < recovery.until) {
-                  // A policy pause right after unmute - resume once rather
-                  // than showing a frozen player. Worst case: muted playback.
-                  recovery.used = true
-                  playerRef.current?.playVideo?.()
-                  playerRef.current?.unMute?.()
-                  return
+            events: {
+              onReady: () => {
+                if (cancelled) return
+                const p = playerRef.current
+                if (!p) return
+                const duration = p.getDuration?.()
+                if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
+                  durationRef.current = Math.floor(duration)
+                  if (start > durationRef.current) {
+                    lastReportedRef.current = 0
+                    p.seekTo?.(0, true)
+                  }
                 }
-                flushProgress()
-              } else if (event?.data === YT_STATE.ENDED) {
-                playingRef.current = false
-                if (movieId) {
+                setPlayerError(false)
+                policyResumeRef.current = { until: Date.now() + 6000, used: false }
+                p.playVideo?.()
+                p.unMute?.()
+                setReady(true)
+              },
+              onStateChange: (event: { data?: number }) => {
+                if (cancelled) return
+                if (event?.data === YT_STATE.PLAYING) {
+                  playingRef.current = true
+                  void enterImmersivePlayback()
+                } else if (event?.data === YT_STATE.PAUSED) {
+                  playingRef.current = false
+                  const recovery = policyResumeRef.current
+                  if (!recovery.used && Date.now() < recovery.until) {
+                    recovery.used = true
+                    playerRef.current?.playVideo?.()
+                    playerRef.current?.unMute?.()
+                    return
+                  }
                   flushProgress()
-                  markComplete(movieId)
+                } else if (event?.data === YT_STATE.ENDED) {
+                  playingRef.current = false
+                  if (movieId) {
+                    flushProgress()
+                    markComplete(movieId)
+                  }
                 }
-              }
+              },
+              onError: () => {
+                if (cancelled) return
+                setPlayerError(true)
+              },
             },
-            onError: () => {
-              // Embed failed (removed video, blocked embedding, bad ID). Surface
-              // it instead of leaving an endless spinner behind.
-              if (cancelled) return
-              setPlayerError(true)
-            },
-          },
+          })
+          playerRef.current = player as YTPlayerLike
         })
-        playerRef.current = player as YTPlayerLike
-      })
-      .catch(() => {
-        // The IFrame API is unavailable (blocked, stalled, offline CDN).
-        // Swap in a plain embed with the same distraction-free configuration -
-        // it autoplays muted and never depends on the API handshake. Resume
-        // history is skipped for this session rather than breaking playback.
-        if (cancelled) return
-        setApiFailed(true)
-        setReady(true)
-      })
+        .catch(() => {
+          if (cancelled) return
+          setApiFailed(true)
+          setReady(true)
+        })
+    } else {
+      // SuperSports-style plain iframe embed - reliable, no API dependency.
+      setReady(true)
+      setPlayerError(false)
+      setApiFailed(false)
+    }
 
     return () => {
       cancelled = true
       void restoreOrientation()
-      playerRef.current?.destroy?.()
-      playerRef.current = null
+      if (advancedPlayer) {
+        playerRef.current?.destroy?.()
+        playerRef.current = null
+      }
     }
-  }, [open, youtubeVideoId, start])
+  }, [open, youtubeVideoId, start, advancedPlayer, playerParams])
 
   // Heartbeat: while full-film playback is active, record progress throttled.
   useEffect(() => {
-    if (!open || !movieId) return
+    if (!open || !advancedPlayer || !movieId) return
+    if (apiFailed) return
     const timer = window.setInterval(() => {
       const p = playerRef.current
       if (!p || !playingRef.current) return
@@ -373,7 +293,8 @@ export function PlayerDialog({
       lastReportedRef.current = current
     }, PROGRESS_INTERVAL_MS)
     return () => window.clearInterval(timer)
-  }, [open, movieId, recordProgress])
+  }, [open, movieId, advancedPlayer, apiFailed, recordProgress])
+
 
   if (!open) return null
 
@@ -386,9 +307,7 @@ export function PlayerDialog({
       className="fixed inset-0 z-[100] flex h-svh flex-col bg-black"
     >
       <div className={isFullscreen ? 'sr-only' : 'flex items-center justify-between gap-4 px-4 py-3 sm:px-6'}>
-        <p className="truncate font-serif text-sm font-medium text-white/90 sm:text-base">
-          {title}
-        </p>
+        <p className="truncate font-serif text-sm font-medium text-white/90 sm:text-base">{title}</p>
         <Button
           variant="ghost"
           size="sm"
@@ -422,30 +341,44 @@ export function PlayerDialog({
             <span className="text-sm">Loading film...</span>
           </div>
         ) : null}
-        <div className={isFullscreen ? 'flex max-h-full w-full flex-1 items-center justify-center overflow-hidden' : 'mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6'}>
-          {apiFailed ? (
-            /* Graceful fallback when the IFrame API can't load: a plain embed
-               with the same distraction-free configuration. It autoplays muted
-               under every browser policy and needs no postMessage handshake. */
+
+        <div className="mx-auto aspect-video w-full max-w-6xl px-0 sm:px-6">
+          {advancedPlayer ? (
+            <div ref={mountRef} className="aspect-video w-full" />
+          ) : (
             <iframe
               key={`${youtubeVideoId}-${start}`}
-              src={`https://www.youtube.com/embed/${encodeURIComponent(youtubeVideoId)}?autoplay=1&mute=1&start=${start}&origin=${encodeURIComponent(window.location.origin)}&rel=0&modestbranding=1&iv_load_policy=3&controls=1&fs=1&playsinline=1&color=white`}
+              src={buildEmbedUrl(youtubeVideoId, {
+                autoplay: 1,
+                mute: 1,
+                start,
+                origin: window.location.origin,
+                rel: 0,
+                modestbranding: 1,
+                iv_load_policy: 3,
+                controls: 1,
+                fs: 1,
+                playsinline: 1,
+                color: 'white',
+                ...playerParams,
+              })}
               title={title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
-              className="aspect-video max-h-full w-auto max-w-full"
+              className="aspect-video w-full max-h-full"
             />
-          ) : (
-            /* The IFrame API replaces this element with the player iframe.
-               Contained (not stretched): the video keeps its 16:9 box and its
-               black letterbox borders instead of zooming to fill the screen. */
-            <div ref={mountRef} className="aspect-video max-h-full w-auto max-w-full" />
-          )}
+          )
+         }
         </div>
       </div>
 
-      <p className={isFullscreen ? 'sr-only' : 'px-4 pb-3 text-center text-xs text-white/40 sm:px-6'}>{caption}</p>
+      <p
+        className={isFullscreen ? 'sr-only' : 'px-4 pb-3 text-center text-sm text-white/40 sm:px-6'}
+      >
+        {caption}
+      </p>
     </div>
   )
 }
+
