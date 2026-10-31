@@ -1,7 +1,7 @@
 name: CI Diagnostics
 
-# Temporary: makes the Vitest failure summary visible. Actions job logs need
-# admin rights to read, but JUnit results are shown as annotations in the UI.
+# Temporary: makes the Vitest failure summary visible in the run's Summary tab
+# (Actions job logs require admin rights to read through the API).
 # Deleted once the suite is green.
 
 on:
@@ -29,14 +29,19 @@ jobs:
           npm -v
           uname -m
 
-      - name: Run vitest (junit)
-        run: npx vitest run --reporter=verbose --reporter=junit --outputFile=junit.xml
+      - name: Run vitest
+        run: npx vitest run --reporter=verbose > vitest.log 2>&1 || true
 
-      - name: Publish test results
+      - name: Summarise
         if: always()
-        uses: mikepenz/action-junit-report@v5
-        with:
-          report_paths: junit.xml
-          include_passed: false
-          annotate_notice: false
-          detailed_summary: true
+        run: |
+          {
+            echo '## Vitest results'
+            echo '```'
+            grep -nE 'FAIL|×|✗|AssertionError|Error:|Error \[|cannot|Cannot|ENOENT|EACCES|EBUSY|SQLITE|expected|Test Files|Tests ' vitest.log | head -100
+            echo '```'
+            echo '## Tail'
+            echo '```'
+            tail -80 vitest.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
