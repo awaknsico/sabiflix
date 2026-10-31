@@ -1,0 +1,42 @@
+name: CI Diagnostics
+
+# Temporary: makes the Vitest failure summary visible. Actions job logs need
+# admin rights to read, but JUnit results are shown as annotations in the UI.
+# Deleted once the suite is green.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Environment
+        run: |
+          node -v
+          npm -v
+          uname -m
+
+      - name: Run vitest (junit)
+        run: npx vitest run --reporter=verbose --reporter=junit --outputFile=junit.xml
+
+      - name: Publish test results
+        if: always()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: junit.xml
+          include_passed: false
+          annotate_notice: false
+          detailed_summary: true
