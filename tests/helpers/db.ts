@@ -9,7 +9,6 @@ import { existsSync, mkdirSync, unlinkSync } from 'fs'
 import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import * as schema from '@/lib/db/schema'
-import { migrate } from 'drizzle-orm/libsql/migrator'
 
 const TEST_DB_PATH = join(process.cwd(), '.data', 'sabiflix-test.db')
 
